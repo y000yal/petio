@@ -4,6 +4,7 @@ const { characterLine, soundCaption } = require('./characters.js');
 app.disableHardwareAcceleration();app.commandLine.appendSwitch('disable-features','AudioServiceOutOfProcess');
 const path = require('node:path');
 const fs = require('node:fs');
+const appIcon = path.join(__dirname, 'assets/petio.png');
 const { sanitize, choose, keepOnScreen, nextDisplay, dueReminders, normalizeWindow, nextWindowTime, nativePoint, ghostTravelPoint, types } = require('./brain.cjs');
 let win, settings, tray, timer, state, savePath, drag, travel, attentionHome, social;
 if(process.env.PETIO_PROFILE){const profile=process.env.PETIO_PROFILE;if(!/^[a-z0-9-]{1,30}$/i.test(profile))throw new Error('Invalid test profile');const directory=path.join(app.getPath('appData'),'Petio-prototype-'+profile);fs.mkdirSync(directory,{recursive:true});app.setPath('userData',directory);}
@@ -207,7 +208,7 @@ function secure(w) { w.webContents.setWindowOpenHandler(() => ({ action: 'deny' 
 function openSettings(tab = 'appearance') {
  setOptions(false);
  if (settings && !settings.isDestroyed()) { settings.show(); settings.focus(); settings.webContents.send('settings-tab', tab); return; }
- settings = new BrowserWindow({ width: 1000, height: 780, minWidth: 740, minHeight: 620, backgroundColor: '#10131b', autoHideMenuBar: true, title: 'Petio · Your little companion', webPreferences: preferences });
+ settings = new BrowserWindow({ icon: appIcon, width: 1000, height: 780, minWidth: 740, minHeight: 620, backgroundColor: '#10131b', autoHideMenuBar: true, title: 'Petio · Your little companion', webPreferences: preferences });
  secure(settings); settings.loadFile(path.join(__dirname, 'settings.html'));
  settings.webContents.once('did-finish-load', () => { emit(); settings.webContents.send('settings-tab', tab); });
  settings.on('closed', () => { settings = null; });
@@ -294,7 +295,7 @@ else {
   app.setAppUserModelId('studio.petio.desktop');
   savePath=path.join(app.getPath('userData'),'personality.json');
   try { state=sanitize(JSON.parse(fs.readFileSync(savePath,'utf8')) ?? {}); } catch { state=sanitize(); }
-  win=new BrowserWindow({ ...size, frame:false, transparent:true, resizable:false, maximizable:false, fullscreenable:false, skipTaskbar:true, alwaysOnTop:state.alwaysOnTop, show:false, hasShadow:false, webPreferences:preferences });
+  win=new BrowserWindow({ icon:appIcon, ...size, frame:false, transparent:true, resizable:false, maximizable:false, fullscreenable:false, skipTaskbar:true, alwaysOnTop:state.alwaysOnTop, show:false, hasShadow:false, webPreferences:preferences });
   win.on('closed',()=>{clearInterval(timer);drag=null;cancelTravel();win=null;app.quit();});
   win.on('blur',()=>{if(options&&!drag)setOptions(false);});win.on('hide',()=>emit());win.on('show',()=>{if(social?.isAway()){win.hide();return;}ignoringMouse=undefined;ignoreMouse(false);emit();});
   secure(win);win.webContents.on('did-finish-load',()=>{win.webContents.setZoomFactor(1);win.webContents.setVisualZoomLevelLimits(1,1);});win.loadFile(path.join(__dirname,'index.html'));
@@ -302,9 +303,7 @@ else {
   win.webContents.once('did-finish-load', () => { if(alive()){petReady=true;win.showInactive();// Launched at login, or soon after the PC booted with launch-at-login on: a big excited hello instead of the usual one.
    const booted=app.isPackaged&&app.getLoginItemSettings().openAtLogin&&(process.argv.includes('--autostart')||require('node:os').uptime()<900);
    if(booted)setTimeout(welcomeBoot,1200);else act('happy',6500,phrase('happy')+'\nClick for activities. Drag to move.');} });
-  const pixels=Buffer.alloc(32*32*4);
-  for(let y=3;y<29;y++) for(let x=4;x<28;x++){const i=(y*32+x)*4,eye=y>=11&&y<=17&&((x>=9&&x<=12)||(x>=19&&x<=22));pixels[i]=eye?100:40;pixels[i+1]=eye?225:36;pixels[i+2]=eye?255:35;pixels[i+3]=255;}
-  tray=new Tray(nativeImage.createFromBitmap(pixels,{width:32,height:32})); tray.setToolTip('Petio · Your little companion');
+  tray=new Tray(nativeImage.createFromPath(appIcon).resize({width:32,height:32})); tray.setToolTip('Petio · Your little companion');
   tray.on('click',()=>tray.popUpContextMenu(menu())); tray.on('right-click',()=>tray.popUpContextMenu(menu()));
   const trusted=e=>alive()&&(e.sender===win.webContents||(settings&&!settings.isDestroyed()&&e.sender===settings.webContents));
   ipcMain.handle('pet-read',e=>trusted(e)?snapshot():null);

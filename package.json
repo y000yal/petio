@@ -1,6 +1,6 @@
 {
   "name": "petio",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Seven expressive desktop companions with reminders, playful physics and friend visits",
   "main": "src/main.cjs",
   "author": "Petio",
@@ -16,7 +16,8 @@
     "dist:self-signed": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dist-self-signed.ps1",
     "social:server": "node tools/social-server.cjs",
     "test:backend": "npm test --prefix backend",
-    "smoke:social": "electron tools/social-smoke.cjs"
+    "smoke:social": "electron tools/social-smoke.cjs",
+    "icon": "node tools/build-icon.cjs"
   },
   "devDependencies": {
     "electron": "^42.0.0",
@@ -36,12 +37,15 @@
       "output": "release"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "src/assets/petio.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
+      "createDesktopShortcut": true,
+      "installerIcon": "src/assets/petio.ico",
+      "uninstallerIcon": "src/assets/petio.ico"
     }
   }
 }
