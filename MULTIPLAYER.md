@@ -27,9 +27,9 @@ identities live in each profile's `social.json`. Tokens and invite codes are
 private credentials; do not share the server data file. No desktop screenshots,
 window titles, Windows notifications or reminder contents are transmitted.
 
-This prototype has display-name identities, one group per profile, and one
-incoming visitor per desktop. It uses two-second HTTP polling, renders visitors
-locally at 24 FPS, and has no new runtime dependencies. It does not yet provide
+This prototype has display-name identities, one group per profile, and up to five
+incoming visitors per desktop. It uses two-second HTTP polling, renders visitors
+locally at 12 FPS while idle and 24 FPS during reactions, and has no new runtime dependencies. It does not yet provide
 public account recovery, moderation, TLS hosting, group chat, or offline mail.
 For internet deployment, follow DEPLOYMENT.md to configure the Vercel + Neon
-backend. Petio 0.5.0 provides hosted server settings and protected credentials.
+backend. Petio 0.5.1 provides hosted server settings and protected credentials.

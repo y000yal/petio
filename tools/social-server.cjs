@@ -5,6 +5,7 @@ const {createService:core}=require('../backend/lib/social-service.cjs');
 function createService(options){const {handle}=core(options);
   const server=http.createServer(async(req,res)=>{
     res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store');
+    if(req.method==='GET'&&req.url==='/health'){res.end(JSON.stringify({ok:true,service:'petio',version:1}));return;}
     try {
       if(req.method!=='POST'||req.headers.origin)throw new Error('Use the Petio desktop client.');
       let body='';for await(const chunk of req){body+=chunk;if(body.length>4096)throw new Error('Request too large.');}

@@ -42,7 +42,7 @@ Run `npm test` at the root, `npm ci --prefix backend`, then
 queries against embedded PostgreSQL. `electron tools/social-smoke.cjs` verifies
 the native departure, arrival, replies, recall and outage recovery locally.
 
-This beta supports up to 100 profiles, 12 members per group, and one visitor per
+This beta supports up to 100 profiles, 12 members per group, and up to five visitors per
 desktop. Neon holds one bounded JSONB state record locked inside a transaction;
 this serializes competing transfers across Vercel instances. Recent history is
 bounded to 200 returned visits globally. Persistent rate limits allow five new
@@ -59,3 +59,10 @@ separate from hosted profiles; switching servers preserves both locally.
 Live deployment and two-computer internet delivery must be checked after your
 Vercel project and Neon database are configured. Automated tests do not claim
 that the real hosted database or deployment has already been verified.
+
+Petio 0.5.1 checks server reachability before profile creation. New clients
+advertise support for five visitors; older clients retain a one-visitor cap.
+Each visitor is identified by owner name and a distinct accent colour. All
+visitors share one renderer, with idle animation limited to 12 FPS. The host
+can select a smaller visitor limit; lowering it returns the excess pets. No
+additional Neon migration is required for this update.

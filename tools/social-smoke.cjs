@@ -16,6 +16,16 @@ async function remote(route,data={},token=''){const r=await fetch('http://127.0.
   const owner=await until(()=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('index.html')));
   await until(()=>owner.webContents.executeJavaScript('!!window.pet').catch(()=>false));await until(()=>owner.isVisible());
   const command=data=>owner.webContents.executeJavaScript('window.pet.socialCommand('+JSON.stringify(data)+')');
+  await until(async()=>!(await owner.webContents.executeJavaScript('window.pet.socialRead()')).connecting);
+  owner.webContents.executeJavaScript('window.pet.command("settings")');
+  const connectionSettings=await until(()=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('settings.html')));
+  await until(()=>connectionSettings.isVisible());await connectionSettings.webContents.executeJavaScript('document.querySelector("[data-tab=friends]").click()');
+  const checkUrl=process.env.PETIO_LIVE_TEST_URL||'http://127.0.0.1:4319';
+  const pendingStatus=await connectionSettings.webContents.executeJavaScript('document.querySelector("#social-url").value='+JSON.stringify(checkUrl)+';document.querySelector("#social-server").requestSubmit();document.querySelector("#social-status").textContent');assert.match(pendingStatus,/Connecting/);
+  await until(async()=>/Server connected/.test(await connectionSettings.webContents.executeJavaScript('document.querySelector("#social-status").textContent')));
+  console.log('PASS: connection status is visible before profile creation.');
+  const failed=await command({command:'server',url:'http://127.0.0.1:1'});assert.equal(failed.ok,false);assert(failed.state.error);
+  assert.equal((await command({command:'server',url:'http://127.0.0.1:4319'})).state.reachable,true);
   assert.equal((await command({command:'register',name:'Desktop owner'})).ok,true);
   const saved=JSON.parse(fs.readFileSync(path.join(directory,'social.json'),'utf8'));
   assert.equal(saved.version,2);assert.equal(saved.profiles[saved.server].token,undefined);assert(saved.profiles[saved.server].encryptedToken);
@@ -45,11 +55,23 @@ async function remote(route,data={},token=''){const r=await fetch('http://127.0.
   await until(()=>settings.isVisible());
   assert.match(await settings.webContents.executeJavaScript('document.querySelector("#social-room-name").textContent'),/Smoke group/);
   fs.writeFileSync(path.join(directory,'friends.png'),(await settings.webContents.capturePage()).toPNG());
+  const more=[];for(let i=0;i<5;i++){const g=await remote('/register',{name:'Guest '+i});await remote('/room/join',{code:state.room.code},g.token);await remote('/visit/send',{host:state.me.id,type:'luffy',message:'Message '+i},g.token);const v=(await remote('/state',{},g.token)).outgoing;await remote('/visit/depart',{id:v.id},g.token);more.push({...g,visit:v.id});}
+  const guestHeart=setInterval(()=>Promise.all(more.map(g=>remote('/state',{},g.token))).catch(()=>{}),2000);
+  const party=await until(()=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('visitor.html')&&w.isVisible()));
+  await until(async()=>await party.webContents.executeJavaScript('document.querySelectorAll("#visitor-list button").length===5'));
+  assert.equal(BrowserWindow.getAllWindows().filter(w=>w.webContents.getURL().endsWith('visitor.html')).length,1);
+  assert.equal(owner.isVisible(),true);await wait(1700);fs.writeFileSync(path.join(directory,'five-visitors.png'),(await party.webContents.capturePage()).toPNG());
+  await party.webContents.executeJavaScript('void window.visitor.sendHome("Reply for Guest 0",'+JSON.stringify(more[0].visit)+')');
+  await until(async()=>await party.webContents.executeJavaScript('document.querySelectorAll("#visitor-list button").length===4'));
+  assert.equal((await remote('/state',{},more[0].token)).recent[0].reply,'Reply for Guest 0');
+  await remote('/visit/return',{id:more[1].visit},more[1].token);
+  await until(async()=>await party.webContents.executeJavaScript('document.querySelectorAll("#visitor-list button").length===3'));
+  assert.equal((await command({command:'accept',accept:false})).ok,true);await until(()=>party.isDestroyed());clearInterval(guestHeart);
   assert.equal((await command({command:'send',host:friend.id,message:'Recall test'})).ok,true);await until(()=>!owner.isVisible());
   assert.equal((await command({command:'recall'})).ok,true);await until(()=>owner.isVisible());
   assert.equal((await command({command:'send',host:friend.id,message:'Outage test'})).ok,true);await until(()=>!owner.isVisible());
   clearInterval(heart);await new Promise(r=>server.close(r));await until(()=>owner.isVisible(),32000);
-  console.log('PASS: owner departure, reply return, visitor alongside own pet, rendered artwork, send home, recall, server outage recovery and group settings. Captures: '+directory);
+  console.log('PASS: owner departure, reply return, visitor alongside own pet, rendered artwork, send home, five visitors in one renderer, separate replies, recall, outage recovery, and connection feedback. Captures: '+directory);
   server.close();app.quit();
  }catch(e){console.error(e);server.close();app.exit(1);}
 })();
