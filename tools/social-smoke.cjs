@@ -1,4 +1,5 @@
 const {app,BrowserWindow}=require('electron');
+app.disableHardwareAcceleration();
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {createService}=require('./social-server.cjs');
 const directory=path.join(__dirname,'../.smoke/social-'+Date.now());fs.mkdirSync(directory,{recursive:true});
@@ -16,6 +17,8 @@ async function remote(route,data={},token=''){const r=await fetch('http://127.0.
   await until(()=>owner.webContents.executeJavaScript('!!window.pet').catch(()=>false));await until(()=>owner.isVisible());
   const command=data=>owner.webContents.executeJavaScript('window.pet.socialCommand('+JSON.stringify(data)+')');
   assert.equal((await command({command:'register',name:'Desktop owner'})).ok,true);
+  const saved=JSON.parse(fs.readFileSync(path.join(directory,'social.json'),'utf8'));
+  assert.equal(saved.version,2);assert.equal(saved.profiles[saved.server].token,undefined);assert(saved.profiles[saved.server].encryptedToken);
   assert.equal((await command({command:'create',name:'Smoke group'})).ok,true);
   let state=await owner.webContents.executeJavaScript('window.pet.socialRead()');const friend=await remote('/register',{name:'Remote friend'});
   await remote('/room/join',{code:state.room.code},friend.token);await remote('/preferences',{accept:true},friend.token);
@@ -39,6 +42,7 @@ async function remote(route,data={},token=''){const r=await fetch('http://127.0.
   const settings=await until(()=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('settings.html')));
   await until(()=>settings.webContents.executeJavaScript('!!window.pet&&!!document.querySelector("#social-status")').catch(()=>false));
   await settings.webContents.executeJavaScript('document.querySelector("[data-tab=friends]").click()');await wait(500);
+  await until(()=>settings.isVisible());
   assert.match(await settings.webContents.executeJavaScript('document.querySelector("#social-room-name").textContent'),/Smoke group/);
   fs.writeFileSync(path.join(directory,'friends.png'),(await settings.webContents.capturePage()).toPNG());
   assert.equal((await command({command:'send',host:friend.id,message:'Recall test'})).ok,true);await until(()=>!owner.isVisible());

@@ -31,6 +31,5 @@ This prototype has display-name identities, one group per profile, and one
 incoming visitor per desktop. It uses two-second HTTP polling, renders visitors
 locally at 24 FPS, and has no new runtime dependencies. It does not yet provide
 public account recovery, moderation, TLS hosting, group chat, or offline mail.
-Internet deployment needs a hosted authenticated service and secure credential
-storage before distributing it to friends. The installer has not been rebuilt
-for this prototype.
+For internet deployment, follow DEPLOYMENT.md to configure the Vercel + Neon
+backend. Petio 0.5.0 provides hosted server settings and protected credentials.

@@ -33,3 +33,6 @@ Thumbs.db
 Desktop.ini
 *.swp
 *.swo
+
+# Vercel local project links and downloaded environment files
+.vercel/

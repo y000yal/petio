@@ -138,3 +138,7 @@ verify repeated delivery, persistence, missed occurrences and deletion.
 These checks do not wait an actual hour. Native smoke checks cover edge positions,
 menu bounds, audio suspension/muting, actions and dual-monitor portal cleanup.
 Multi-monitor checks require at least two connected displays.
+
+## Online friend visits
+
+For Vercel + Neon hosting, use the `backend` project and follow [DEPLOYMENT.md](DEPLOYMENT.md). The desktop app supports a configurable HTTPS server in Friends & visits. Local testing remains available via [MULTIPLAYER.md](MULTIPLAYER.md).
