@@ -1,0 +1,7 @@
+let visit,start=performance.now(),timer,petUntil=0;const ctx=document.querySelector('canvas').getContext('2d');
+window.visitor.onState(v=>{visit=v;document.querySelector('#owner').textContent=v.ownerName+"’s "+companions[v.type].name+' is visiting ✨';document.querySelector('#message').textContent=v.message;});
+function frame(){ctx.clearRect(0,0,340,200);if(visit){const t=(performance.now()-start)/1000,arriving=t<1.4;ctx.save();if(arriving){ctx.strokeStyle='#b995ff';ctx.lineWidth=5;ctx.beginPath();ctx.ellipse(170,105,25+8*Math.sin(t*8),70,0,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=Math.min(1,t);}drawPet(ctx,{type:visit.type,action:arriving?'happy':performance.now()<petUntil?'scratch':'idle',direction:1},t,t,170,95,.65);ctx.restore();}timer=setTimeout(frame,document.hidden?1000:1000/24);}frame();
+async function home(reply){for(const b of document.querySelectorAll('button'))b.disabled=true;const r=await window.visitor.sendHome(reply);if(r?.error){document.querySelector('#error').textContent=r.error;for(const b of document.querySelectorAll('button'))b.disabled=false;}}
+document.querySelector('form').addEventListener('submit',e=>{e.preventDefault();const text=document.querySelector('#reply').value.trim();if(text)home(text);});document.querySelector('#return').onclick=()=>home();window.addEventListener('unload',()=>clearTimeout(timer));
+
+document.querySelector('#pet').onclick=()=>{petUntil=performance.now()+3000;};

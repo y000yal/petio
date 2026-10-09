@@ -1,0 +1,45 @@
+{
+  "name": "petio",
+  "version": "0.4.0",
+  "description": "Six expressive desktop companions with reminders and playful physics",
+  "main": "src/main.cjs",
+  "author": "Petio",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "node tools/dev.cjs",
+    "test": "node --test test/*.test.cjs",
+    "smoke": "electron tools/smoke.cjs",
+    "helper": "node tools/build-helper.cjs",
+    "dist": "node tools/build-helper.cjs && electron-builder --win nsis",
+    "pack": "node tools/build-helper.cjs && electron-builder --dir",
+    "dist:self-signed": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dist-self-signed.ps1",
+    "social:server": "node tools/social-server.cjs"
+  },
+  "devDependencies": {
+    "electron": "^42.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "studio.petio.desktop",
+    "productName": "Petio",
+    "asarUnpack": [
+      "src/helper/aware.exe"
+    ],
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
+  }
+}

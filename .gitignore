@@ -1,0 +1,35 @@
+# Dependencies and generated installers
+node_modules/
+release/
+dist/
+out/
+src/helper/aware.exe
+src/helper/aware.pdb
+
+# Test captures, caches, and coverage
+.smoke/
+coverage/
+.nyc_output/
+*.log
+*.tsbuildinfo
+
+# Local credentials, signing identity, and multiplayer data
+.env
+.env.*
+!.env.example
+.signing/
+.social/
+*.pfx
+*.p12
+*.key
+social.json
+personality.json
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo

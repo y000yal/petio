@@ -1,0 +1,7 @@
+Sound effects bundled with Petio. All are CC0 1.0 (public domain) from OpenGameArt.org; credit is not required but given here.
+Each clip was trimmed, converted to mono Ogg Vorbis and loudness-normalised.
+
+miso.ogg     Meow            by IgnasD               https://opengameart.org/content/meow
+bell.ogg     Pleasing Bell Sound Effect by Spring Spring https://opengameart.org/content/pleasing-bell-sound-effect
+boo.ogg      Provided by the app owner (magiaz-boo_the_ghost-485547.mp3); excerpt, pitched up about 5 semitones, sped up and shortened to under a second.
+luffy_*.ogg  Provided by the app owner (mixkit-happy-puppy-barks-741.wav from Mixkit); cut into short clips for different actions.
