@@ -38,14 +38,14 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "src/assets/petio.ico"
+      "icon": "build/petio.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "installerIcon": "src/assets/petio.ico",
-      "uninstallerIcon": "src/assets/petio.ico"
+      "installerIcon": "build/petio.ico",
+      "uninstallerIcon": "build/petio.ico"
     }
   }
 }
