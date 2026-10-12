@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('pet', {
-  command: command => { if (['down', 'up', 'menu', 'more', 'notifications', 'close', 'pet', 'jump', 'flip', 'dead', 'dance', 'sleep', 'idle', 'wander', 'settings', 'reminder', 'attention', 'visit', 'special', 'sound-test'].includes(command)) ipcRenderer.send('pet-command', command); },
+  command: command => { if (['games', 'down', 'up', 'menu', 'more', 'notifications', 'close', 'pet', 'jump', 'flip', 'dead', 'dance', 'sleep', 'idle', 'wander', 'settings', 'reminder', 'attention', 'visit', 'special', 'sound-test'].includes(command)) ipcRenderer.send('pet-command', command); },
   onSound: callback => ipcRenderer.on('pet-sound', (_event, sound) => callback(sound)),
   look: callback => ipcRenderer.on('pet-look', (_event, v) => callback(v)),
   view: callback => ipcRenderer.on('pet-view', (_event, v) => callback(v)),

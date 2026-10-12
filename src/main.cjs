@@ -5,7 +5,9 @@ app.disableHardwareAcceleration();app.commandLine.appendSwitch('disable-features
 const path = require('node:path');
 const fs = require('node:fs');
 const appIcon = path.join(__dirname, 'assets/petio.png');
+if (process.platform === 'win32') app.setAppUserModelId('studio.petio.desktop');
 const { sanitize, choose, keepOnScreen, nextDisplay, dueReminders, normalizeWindow, nextWindowTime, nativePoint, ghostTravelPoint, types } = require('./brain.cjs');
+let gameWindow;
 let win, settings, tray, timer, state, savePath, drag, travel, attentionHome, social;
 if(process.env.PETIO_PROFILE){const profile=process.env.PETIO_PROFILE;if(!/^[a-z0-9-]{1,30}$/i.test(profile))throw new Error('Invalid test profile');const directory=path.join(app.getPath('appData'),'Petio-prototype-'+profile);fs.mkdirSync(directory,{recursive:true});app.setPath('userData',directory);}
 let action = 'idle', started = Date.now(), until = 0, direction = 1, paused = false, options = false;
@@ -205,10 +207,21 @@ function scratchUpdate(c,hit,s,now,dt){
  }
 }
 function secure(w) { w.webContents.setWindowOpenHandler(() => ({ action: 'deny' })); w.webContents.on('will-navigate', e => e.preventDefault()); }
+function openGames() {
+ if (social?.isAway()) return;
+ if (gameWindow && !gameWindow.isDestroyed()) { gameWindow.show(); gameWindow.focus(); return; }
+ cancelTravel(); drag=null; needLevel=0; attentionHome=null; setOptions(false,true); act('idle',30000,undefined,true);
+ const area=screen.getDisplayNearestPoint(nativePoint(anchor())).workArea,p=anchor(),width=Math.min(380,area.width),height=Math.min(560,area.height);
+ gameWindow=new BrowserWindow({x:Math.round(Math.max(area.x,Math.min(area.x+area.width-width,p.x+75))),y:Math.round(Math.max(area.y,Math.min(area.y+area.height-height,p.y-height/2))),width,height,icon:appIcon,frame:false,resizable:false,alwaysOnTop:state.alwaysOnTop,backgroundColor:'#151722',webPreferences:{preload:path.join(__dirname,'games-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+ if(process.platform==='win32')gameWindow.setAppDetails({appId:'studio.petio.desktop',appIconPath:app.isPackaged?process.execPath:path.join(__dirname,'../build/petio.ico'),appIconIndex:0,relaunchDisplayName:'Petio'});
+ secure(gameWindow);gameWindow.loadFile(path.join(__dirname,'games.html'));
+ gameWindow.on('closed',()=>{gameWindow=null;lastAttention=Date.now();if(alive())act('idle',1500,undefined,true);});
+}
 function openSettings(tab = 'appearance') {
  setOptions(false);
  if (settings && !settings.isDestroyed()) { settings.show(); settings.focus(); settings.webContents.send('settings-tab', tab); return; }
  settings = new BrowserWindow({ icon: appIcon, width: 1000, height: 780, minWidth: 740, minHeight: 620, backgroundColor: '#10131b', autoHideMenuBar: true, title: 'Petio · Your little companion', webPreferences: preferences });
+ if (process.platform === 'win32') settings.setAppDetails({ appId: 'studio.petio.desktop', appIconPath: app.isPackaged ? process.execPath : path.join(__dirname, '../build/petio.ico'), appIconIndex: 0, relaunchDisplayName: 'Petio' });
  secure(settings); settings.loadFile(path.join(__dirname, 'settings.html'));
  settings.webContents.once('did-finish-load', () => { emit(); settings.webContents.send('settings-tab', tab); });
  settings.on('closed', () => { settings = null; });
@@ -292,7 +305,7 @@ else {
  if(process.argv.includes('--dev')){ // reload windows on UI edits; tools/dev.cjs restarts on main-process edits
   let hot;fs.watch(__dirname,(_e,file)=>{if(/^(main|preload|brain|awareness|appmood|notifications|overlay-preload)\.cjs$|^characters\.js$/.test(file||''))return;clearTimeout(hot);hot=setTimeout(()=>{for(const w of BrowserWindow.getAllWindows())if(!w.isDestroyed())w.webContents.reloadIgnoringCache();},150);});
  }
-  app.setAppUserModelId('studio.petio.desktop');
+
   savePath=path.join(app.getPath('userData'),'personality.json');
   try { state=sanitize(JSON.parse(fs.readFileSync(savePath,'utf8')) ?? {}); } catch { state=sanitize(); }
   win=new BrowserWindow({ icon:appIcon, ...size, frame:false, transparent:true, resizable:false, maximizable:false, fullscreenable:false, skipTaskbar:true, alwaysOnTop:state.alwaysOnTop, show:false, hasShadow:false, webPreferences:preferences });
@@ -309,6 +322,7 @@ else {
   ipcMain.handle('pet-read',e=>trusted(e)?snapshot():null);
   social=require('./social.cjs').startSocial({directory:app.getPath('userData'),readPet:()=>state,
    setAway:async away=>{cancelTravel();drag=null;options=false;needLevel=0;if(away&&alive()){
+    if(gameWindow)gameWindow.close();
     act('portalOut',850,'Off to visit a friend! ✨');
     const p=anchor(),point=nativePoint({x:p.x-48,y:p.y-110});
     const portal=new BrowserWindow({...point,width:96,height:220,frame:false,transparent:true,resizable:false,skipTaskbar:true,alwaysOnTop:true,show:false,hasShadow:false,webPreferences:{preload:path.join(__dirname,'overlay-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
@@ -349,8 +363,12 @@ else {
    }
    save();emit();return {ok:true};
   });
+  ipcMain.handle('game-read',e=>e.sender===gameWindow?.webContents?{type:state.type,name:({miso:'Miso',ember:'Ember',bumble:'Bumble',boo:'Boo',drowsy:'Drowsy',merlin:'Merlin',luffy:'Luffy'})[state.type]}:null);
+  ipcMain.on('game-close',e=>{if(e.sender===gameWindow?.webContents)gameWindow.close();});
+  ipcMain.on('game-result',(e,result)=>{if(e.sender!==gameWindow?.webContents||!['pet','player','draw'].includes(result))return;act(result==='pet'?'happy':result==='player'?'curious':'idle',2200,undefined,true);sound(result==='pet'?'happy':'menu',true);});
   ipcMain.on('pet-command',(e,command)=>{
    if(!trusted(e))return;
+   if(command==='games'){openGames();return;}
    if(command==='sound-test'){sound('happy',true,true);return;}
    if(command==='notifications'){openNoticeApp();return;}
    if(command==='menu'){drag=null;quickUntil=0;setOptions(!options);return;}
@@ -400,7 +418,7 @@ else {
     act('idle',4500,state.prompts?phrase(event):undefined);return;
    }
    if(options&&now>until&&action!=='happy')act('happy',30000,undefined,true); // menu still open: settle back to a calm pose
-   if(paused||options)return;
+   if(paused||options||gameWindow)return;
    if(travel){
     if(travel.pending)return;
     const progress=(now-travel.start)/(travel.duration||1800);

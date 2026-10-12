@@ -52,7 +52,7 @@ function renderMenu(){
  const special=['special',specialIcon[state.type]||'✨','Special'],back=['page:home','↩️','Back'];
  const multi=(state.screens||1)>1&&!state.zone;
  // Each action appears once: signature move on the home page, tricks under Play, calm things under Rest. Screen travel only with 2+ screens.
- const pages={home:[special,['page:play','🎮','Play'],['page:rest','🛋️','Rest and explore'],['reminder','🔔','Reminders'],['settings','⚙️','Settings'],['close','✖️','Close']],play:[['jump','🦘','Jump'],['flip','🤸','Flip'],['dance','🎵','Dance'],['dead','💀','Play dead'],back],rest:[state.roaming===false?['wander','🧭','Explore']:['idle','📍','Stay here'],['sleep','😴','Take a nap'],...(multi?[['visit','🖥️','Next screen']]:[]),back]};
+ const pages={home:[special,['page:play','🎮','Play'],['page:rest','🛋️','Rest and explore'],['reminder','🔔','Reminders'],['settings','⚙️','Settings'],['close','✖️','Close']],play:[['games','🎲','Play games'],['jump','🦘','Jump'],['flip','🤸','Flip'],['dance','🎵','Dance'],['dead','💀','Play dead'],back],rest:[state.roaming===false?['wander','🧭','Explore']:['idle','📍','Stay here'],['sleep','😴','Take a nap'],...(multi?[['visit','🖥️','Next screen']]:[]),back]};
  const icon={small:34,medium:40,large:48}[state.menuSize]||40;ring.replaceChildren();ring.style.setProperty('--icon',icon+'px');ring.style.setProperty('--glyph',Math.round(icon*.52)+'px');const entries=pages[menuPage],step=icon+8,span=(entries.length-1)*step,side=state.menuSide||'right',x=state.petX,y=state.petY,s0=state.scale,reach=Math.max(95,Math.round(175*state.scale)),gap=Math.max(70,Math.round(110*state.scale))+30;
  ring.dataset.side=side;
  // Fan the icons out in an arc around the pet, then nudge them apart so edges of the screen never make them overlap.
