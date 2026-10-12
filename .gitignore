@@ -36,3 +36,6 @@ Desktop.ini
 
 # Vercel local project links and downloaded environment files
 .vercel/
+
+.vercel
+.env*

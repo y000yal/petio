@@ -42,9 +42,10 @@ async function remote(route,data={},token=''){const r=await fetch('http://127.0.
   const outgoing=(await remote('/state',{},friend.token)).outgoing;await remote('/visit/depart',{id:outgoing.id},friend.token);
   const visitor=await until(()=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('visitor.html')&&w.isVisible()));
   assert.equal(owner.isVisible(),true);
+  await visitor.webContents.executeJavaScript('document.querySelector("#visitor-list button").click()');
   assert.match(await visitor.webContents.executeJavaScript('document.body.innerText'),/Remote friend/);
   assert.match(await visitor.webContents.executeJavaScript('document.body.innerText'),/Woof from your friend/);
-  await wait(1600);assert.equal(await visitor.webContents.executeJavaScript('document.querySelector("canvas").getContext("2d").getImageData(0,0,340,200).data.some(v=>v>0)'),true);
+  await wait(1600);assert.equal(await visitor.webContents.executeJavaScript('(()=>{const c=document.querySelector("canvas"),d=c.getContext("2d").getImageData(0,0,c.width,c.height).data;for(let i=3;i<d.length;i+=64)if(d[i]>20)return true;return false;})()'),true);
   const image=await visitor.webContents.capturePage();fs.writeFileSync(path.join(directory,'visitor.png'),image.toPNG());
   await visitor.webContents.executeJavaScript('void window.visitor.sendHome("Scritches delivered! 🐾")');await until(()=>visitor.isDestroyed());
   assert.equal(visitor.isDestroyed(),true);assert.equal((await remote('/state',{},friend.token)).recent.at(-1).reply,'Scritches delivered! 🐾');

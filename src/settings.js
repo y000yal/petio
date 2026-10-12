@@ -5,7 +5,7 @@ for(const [id,p] of Object.entries(companions)){
  const c=document.createElement('canvas');c.width=120;c.height=100;const title=document.createElement('strong');title.textContent=p.name;b.append(c,title);b.addEventListener('click',()=>{previewType=id;render(current);});gallery.append(b);
  drawPet(c.getContext('2d'),{type:id,action:'happy',direction:1},1,1,60,51,.48);
 }
-function tab(name){activeTab=name;document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==name);document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));document.querySelector('#breadcrumb').textContent=({appearance:'YOUR COMPANION',behavior:'HABITS & CARE',reminders:'YOUR FRIENDLY REMINDERS',friends:'FRIENDS & VISITS'})[name]||'YOUR COMPANION';restartPreview();}
+function tab(name){if(name==='friends')name='friends-settings';activeTab=name;const friends=name==='friends-chat'||name==='friends-settings';document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==name);document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name||(b.dataset.tab==='friends'&&friends)));document.querySelector('#breadcrumb').textContent=({appearance:'YOUR COMPANION',behavior:'HABITS & CARE',reminders:'YOUR FRIENDLY REMINDERS','friends-chat':'FRIENDS & VISITS · CHAT','friends-settings':'FRIENDS & VISITS · SETTINGS'})[name]||'YOUR COMPANION';restartPreview();}
 for(const b of document.querySelectorAll('[data-tab]'))b.addEventListener('click',()=>tab(b.dataset.tab));
 document.querySelector('.brand').addEventListener('click',e=>{e.preventDefault();tab('appearance');});
 window.pet.onTab(tab);

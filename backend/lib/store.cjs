@@ -1,6 +1,6 @@
 const {createHash,timingSafeEqual}=require('node:crypto');
 const {createService}=require('./social-service.cjs');
-const routes=new Set(['/register','/identity','/state','/room/create','/room/join','/preferences','/visit/send','/visit/depart','/visit/arrive','/visit/return']);
+const routes=new Set(['/register','/identity','/state','/room/create','/room/join','/preferences','/message','/unsend','/react','/pin','/typing','/seen','/visit/send','/visit/depart','/visit/arrive','/visit/return']);
 class RequestError extends Error {constructor(message,status=400){super(message);this.status=status;}}
 function createStore(pool,{now=Date.now,registrationCode=''}={}){
  return {async execute(route,data,token,ip='local'){

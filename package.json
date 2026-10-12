@@ -1,6 +1,6 @@
 {
   "name": "petio",
-  "version": "0.6.1",
+  "version": "0.6.3",
   "description": "Seven expressive desktop companions with reminders, playful physics and friend visits",
   "main": "src/main.cjs",
   "author": "Petio",
@@ -17,15 +17,24 @@
     "social:server": "node tools/social-server.cjs",
     "test:backend": "npm test --prefix backend",
     "smoke:social": "electron tools/social-smoke.cjs",
-    "icon": "node tools/build-icon.cjs"
+    "icon": "node tools/build-icon.cjs",
+    "picker": "esbuild tools/emoji-picker.jsx --bundle --minify --format=iife --global-name=PetioEmoji --platform=browser --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --outfile=src/emoji-picker.js"
   },
   "devDependencies": {
     "electron": "^42.0.0",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "esbuild": "^0.28.2",
+    "frimousse": "^0.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "build": {
     "appId": "studio.petio.desktop",
     "productName": "Petio",
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US"
+    ],
     "asarUnpack": [
       "src/helper/aware.exe"
     ],

@@ -1,0 +1,129 @@
+# Publishes only when the commit subject on main is exactly:
+# Final verison bump to v1.2.3 for public release.
+# The v number in that sentence is the tag. It must match package.json.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petio-release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.match.outputs.release }}
+      version: ${{ steps.match.outputs.version }}
+    steps:
+      - name: Match the public-release commit
+        id: match
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          line="$(printf '%s\n' "$COMMIT_MSG" | head -n 1 | tr -d '\r')"
+          if [[ "$line" =~ ^Final\ verison\ bump\ to\ v([0-9]+\.[0-9]+\.[0-9]+)\ for\ public\ release\.$ ]]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Read version
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          tagged="${{ needs.check.outputs.version }}"
+          if [ "$version" != "$tagged" ]; then
+            echo "package.json is $version, but the commit says v$tagged."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "Tag v$version already exists."
+            exit 1
+          fi
+
+      - name: Write changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.ver.outputs.version }}"
+          previous="$(git tag --list 'v*' --sort=-v:refname | head -n 1 || true)"
+          {
+            echo "## Petio $version"
+            echo
+            if [ -n "$previous" ]; then
+              echo "Changes since $previous:"
+              echo
+              git log "$previous"..HEAD --no-merges --pretty=format:'- %s (%h)'
+            else
+              echo "Changes:"
+              echo
+              git log --no-merges --pretty=format:'- %s (%h)'
+            fi
+            echo
+          } > release-notes.md
+
+      - name: Build installer
+        run: npm run dist
+
+      - name: Zip installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $zip = Join-Path "release" "Petio-$version-win.zip"
+          $files = @(
+            Get-ChildItem release -Filter "*.exe" -File
+            Get-ChildItem release -Filter "*.blockmap" -File
+            Get-Item "release/latest.yml"
+          )
+          if (-not $files) { throw "The build did not produce an installer." }
+          Compress-Archive -Path $files.FullName -DestinationPath $zip -Force
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.ver.outputs.version }}"
+          gh release create "v$version" \
+            --repo "${{ github.repository }}" \
+            --title "Petio $version" \
+            --notes-file release-notes.md \
+            --target "${{ github.sha }}" \
+            "release/Petio-$version-win.zip" \
+            release/*.exe \
+            release/*.blockmap \
+            release/latest.yml

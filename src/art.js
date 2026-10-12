@@ -11,7 +11,7 @@ const companions = {
 const signatureActions={miso:'⌁ Pounce',ember:'♆ Summon',bumble:'〰 Happy buzz',boo:'◌ Vanish',drowsy:'☾ Big yawn',merlin:'✧ Cast a spell',luffy:'👊 Rubber punch'};
 function drawPet(ctx, state, t, age, x, y, scale = 1) {
  const type=companions[state.type]?state.type:'miso', p=companions[type];
- const a=state.action||'idle', moving=['walk','travel','phase','portalOut','portalIn'].includes(a), vertical=moving&&Math.abs(state.climb||0)>.3, goingUp=vertical&&state.climb<0, walking=moving&&!vertical, happy=['happy','pet','scratch','expect','alert','dance','attention','hug','grow','hover','pose'].includes(a), sleeping=a==='sleep'||a==='yawn';
+ const a=state.action||'idle', moving=['walk','travel','phase','portalOut','portalIn'].includes(a), vertical=moving&&Math.abs(state.climb||0)>.3, goingUp=vertical&&state.climb<0, walking=moving&&!vertical, happy=['happy','pet','scratch','expect','alert','dance','attention','hug','grow','hover','pose','nuzzle','greet','play','spark','circle'].includes(a), sleeping=a==='sleep'||a==='yawn';
  const s=Math.min(1, age/Math.max(.1,((state.until||0)-(state.started||0))/1000||1));
  const pose=actionPose(a,a==='pounce'?(age%1.4)/1.4:s,t,type,a==='welcome'?(state.excite||1):(state.need||0));
  const broom=type==='merlin'&&moving,weary=moving&&type==='drowsy',gait=broom?0:weary?t*3.6:t*10;
@@ -51,7 +51,7 @@ function drawPet(ctx, state, t, age, x, y, scale = 1) {
   ctx.translate(30+17*lieT,58-10*lieT);ctx.rotate(-Math.PI/2*lieT);ctx.translate(-30,-58);
   if(lieT>0){ctx.save();ctx.setTransform(lyingBase);r(10,61,44,1,'#05091340');r(13,62,38,1,'#05091320');ctx.restore();}
  }
- if((walking||(type==='luffy'&&a==='gomu'))&&state.direction<0){ctx.translate(60,0);ctx.scale(-1,1);}
+ if((walking||state.meet||(type==='luffy'&&a==='gomu'))&&state.direction<0){ctx.translate(60,0);ctx.scale(-1,1);}
  if(broom){ctx.translate(30,53);ctx.rotate((vertical?0:(state.climb||0)*.5)+Math.sin(t*3)*.03);ctx.translate(-30,-53);}
  if(walking&&flying){ctx.translate(30,39);ctx.rotate((type==='boo'?.14:.48)+Math.sin(t*4)*.04);ctx.translate(-30,-39);}
  const gameHand=(x,y,color)=>{if(!state.playing)return;const hand=state.gameHand;r(x-1,y-1,7,6,'#10111b');r(x,y,5,4,color);if(hand===1){for(let i=0;i<4;i++){r(x+i*2-1,y-6,2,7,'#10111b');r(x+i*2,y-5,1,6,color);}}else if(hand===2){r(x,y-6,2,7,'#10111b');r(x+4,y-6,2,7,'#10111b');r(x,y-5,1,6,color);r(x+4,y-5,1,6,color);}else if(hand!==0){r(x+1,y-4,2,5,color);}};

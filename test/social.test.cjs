@@ -20,6 +20,94 @@ test('private groups transfer one pet through departure, arrival, reply and reca
  call(a,'/visit/send',{host:b.id,type:'luffy',message:'Woof'});v=call(a,'/state').outgoing;call(a,'/visit/return',{id:v.id});assert.equal(call(b,'/state').incoming,null);
  assert.throws(()=>h('/state',{},'incorrect-token'));
 });
+test('a friend joining the group is announced once, and every member stays listed',()=>{
+ const {handle:h}=createService(),a=h('/register',{name:'Ada'}),b=h('/register',{name:'Bea'}),c=h('/register',{name:'Cleo'});
+ h('/room/create',{name:'Desk'},a.token);const code=h('/state',{},a.token).room.code;
+ h('/room/join',{code},b.token);h('/room/join',{code},c.token);
+ const first=h('/state',{},a.token);
+ assert.deepEqual(first.notices.map(n=>n.name),['Bea','Cleo']);
+ assert.equal(first.notices.every(n=>n.kind==='join'),true);
+ assert.deepEqual(first.members.map(m=>m.name),['Bea','Cleo']);
+ assert.equal(first.members.every(m=>m.online),true);
+ assert.equal(h('/state',{},a.token).notices.length,0);
+ assert.equal(h('/state',{},b.token).notices.map(n=>n.name).join(','),'Cleo');
+});
+test('a group note is delivered to every other member once',()=>{
+ const {handle:h}=createService(),a=h('/register',{name:'Ada'}),b=h('/register',{name:'Bea'}),c=h('/register',{name:'Cleo'});
+ h('/room/create',{name:'Desk'},a.token);const code=h('/state',{},a.token).room.code;
+ h('/room/join',{code},b.token);h('/room/join',{code},c.token);
+ h('/state',{},b.token);h('/state',{},c.token);
+ h('/message',{message:'Lunch on the desk?'},a.token);
+ assert.equal(h('/state',{},a.token).notices.some(n=>n.kind==='message'),false);
+ for(const member of [b,c]){
+  const notes=h('/state',{},member.token).notices.filter(n=>n.kind==='message');
+  assert.equal(notes.length,1);assert.equal(notes[0].name,'Ada');assert.equal(notes[0].text,'Lunch on the desk?');
+  assert.equal(h('/state',{},member.token).notices.some(n=>n.kind==='message'),false);
+  assert.equal(h('/state',{},member.token).chat.some(m=>m.text==='Lunch on the desk?'&&m.to==='group'),true);
+ }
+ assert.equal(h('/state',{},a.token).chat.some(m=>m.text==='Lunch on the desk?'&&m.from===a.id),true);
+ assert.throws(()=>h('/message',{message:'Nope'}));
+});
+test('a direct note stays in both chats and is not announced to the rest of the group',()=>{
+ const {handle:h}=createService(),a=h('/register',{name:'Ada'}),b=h('/register',{name:'Bea'}),c=h('/register',{name:'Cleo'});
+ h('/room/create',{name:'Desk'},a.token);const code=h('/state',{},a.token).room.code;
+ h('/room/join',{code},b.token);h('/room/join',{code},c.token);
+ h('/state',{},b.token);h('/state',{},c.token);
+ assert.throws(()=>h('/message',{message:'Psst',host:b.id},a.token),/visits turned off/);
+ h('/preferences',{accept:true},b.token);
+ h('/message',{message:'Psst',host:b.id},a.token);
+ assert.equal(h('/state',{},a.token).chat.some(m=>m.text==='Psst'&&m.to===b.id),true);
+ const bea=h('/state',{},b.token);
+ assert.equal(bea.notices.some(n=>n.text==='Psst'),true);
+ assert.equal(bea.chat.some(m=>m.text==='Psst'),true);
+ assert.equal(h('/state',{},b.token).notices.some(n=>n.text==='Psst'),false);
+ assert.equal(h('/state',{},b.token).chat.some(m=>m.text==='Psst'),true);
+ assert.equal(h('/state',{},c.token).notices.some(n=>n.kind==='message'),false);
+ assert.equal(h('/state',{},c.token).chat.some(m=>m.text==='Psst'),false);
+ assert.throws(()=>h('/message',{message:'Nope',host:'nope'},a.token));
+ h('/seen',{host:a.id},b.token);
+ assert.ok(h('/state',{},a.token).chat.find(m=>m.text==='Psst').seen.includes(b.id));
+ h('/typing',{host:a.id},b.token);
+ assert.equal(h('/state',{},a.token).typing.some(t=>t.name==='Bea'&&t.to===a.id),true);
+ assert.equal(h('/state',{},c.token).typing.some(t=>t.to===a.id),false);
+});
+test('a sender can unsend their own message for 30 minutes',()=>{
+ let time=1000000;const {handle:h}=createService({now:()=>time}),a=h('/register',{name:'Ada'}),b=h('/register',{name:'Bea'});
+ h('/room/create',{name:'Desk'},a.token);h('/room/join',{code:h('/state',{},a.token).room.code},b.token);
+ h('/message',{message:'Oops'},a.token);
+ const id=h('/state',{},a.token).chat.find(m=>m.text==='Oops').id;
+ assert.throws(()=>h('/unsend',{id},b.token),/cannot be unsent/);
+ h('/unsend',{id},a.token);
+ assert.equal(h('/state',{},a.token).chat.some(m=>m.id===id),false);
+ assert.equal(h('/state',{},b.token).chat.some(m=>m.text==='Oops'),false);
+ h('/message',{message:'Later'},a.token);
+ const old=h('/state',{},a.token).chat.find(m=>m.text==='Later').id;
+ time+=31*60*1000;
+ assert.throws(()=>h('/unsend',{id:old},a.token),/30 minutes/);
+ assert.equal(h('/state',{},b.token).chat.some(m=>m.id===old),true);
+});
+test('a group message can be replied to, reacted to, and pinned',()=>{
+ const {handle:h}=createService(),a=h('/register',{name:'Ada'}),b=h('/register',{name:'Bea'});
+ h('/room/create',{name:'Desk'},a.token);h('/room/join',{code:h('/state',{},a.token).room.code},b.token);
+ h('/message',{message:'Lunch?'},a.token);
+ const id=h('/state',{},b.token).chat.find(m=>m.text==='Lunch?').id;
+ h('/message',{message:'Yes',reply:id},b.token);
+ const reply=h('/state',{},a.token).chat.find(m=>m.text==='Yes');
+ assert.equal(reply.reply.name,'Ada');assert.equal(reply.reply.text,'Lunch?');
+ h('/preferences',{accept:true},a.token);
+ assert.throws(()=>h('/message',{message:'Nope',host:a.id,reply:id},b.token),/same chat/);
+ h('/react',{id,emoji:'❤️'},b.token);
+ assert.deepEqual(h('/state',{},a.token).chat.find(m=>m.id===id).reactions,[{emoji:'❤️',by:[b.id]}]);
+ h('/react',{id,emoji:'❤️'},b.token);
+ assert.equal(h('/state',{},a.token).chat.find(m=>m.id===id).reactions,undefined);
+ h('/react',{id,emoji:'👍'},a.token);h('/react',{id,emoji:'👍'},b.token);
+ assert.equal(h('/state',{},a.token).chat.find(m=>m.id===id).reactions[0].by.length,2);
+ h('/pin',{id},b.token);
+ assert.equal(h('/state',{},a.token).chat.find(m=>m.id===id).pinned,true);
+ h('/pin',{id},a.token);
+ assert.equal(h('/state',{},a.token).chat.find(m=>m.id===id).pinned,false);
+ assert.throws(()=>h('/react',{id:'missing',emoji:'❤️'},a.token),/no longer there/);
+});
 test('visits expire on disconnect, host opt-out, and maximum duration',()=>{
  let time=1000;const {handle:h}=createService({now:()=>time}),a=h('/register',{name:'A'}),b=h('/register',{name:'B'});
  const call=(u,r,d)=>h(r,d,u.token);call(a,'/room/create',{name:'Room'});call(b,'/room/join',{code:call(a,'/state').room.code});call(b,'/preferences',{accept:true});

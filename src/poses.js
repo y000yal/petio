@@ -112,6 +112,11 @@ function actionPose(action,progress,time,type='miso',need=0){
  else if(action==='nodoff'){const c=time%4,jerk=c>3.3;p.lean=jerk?0:Math.min(.28,c*.08);p.squash=jerk?1.03:.92;p.face='squeezed';}
  else if(action==='sheep'){p.lean=Math.sin(time*1.2)*.05;p.squash=.95;p.face='squeezed';}
  else if(action==='cocoa'){const s2=Math.max(0,Math.sin(time*.9));p.rightArm=8+s2*3;p.lean=s2*.04;p.squash=.95;}
+ else if(action==='nuzzle'){p.lean=.28;p.y=1;p.bend=1;p.leftArm=2;p.rightArm=5;p.face='happy';}
+ else if(action==='greet'){p.rightArm=9+Math.sin(time*8)*2;p.leftArm=0;p.y=-Math.abs(Math.sin(time*5))*2;p.face='happy';}
+ else if(action==='play'){p.y=-Math.abs(Math.sin(time*8))*5;p.lean=Math.sin(time*8)*.16;p.leftArm=7;p.rightArm=3;p.face='wink';}
+ else if(action==='spark'){p.rightArm=10+Math.sin(time*6)*1.5;p.y=-6-Math.sin(time*3)*2;p.lean=Math.sin(time*2)*.1;p.face='happy';}
+ else if(action==='circle'){p.dx=Math.sin(time*3.2)*14;p.y=-10+Math.cos(time*3.2)*8;p.lean=Math.cos(time*3.2)*.2;p.face='happy';}
  else if(action==='drink'){ // 3 s cycle: reach for the drink, sip (head tips back), lower it with a happy sigh
   const c=(time%3)/3,sipK=c>.25&&c<.75?Math.sin((c-.25)/.5*Math.PI):0,reach=c<.25?c/.25:c>.75?1-(c-.75)/.25:1;
   p.rightArm=3+reach*6+sipK*2;p.lean=-sipK*.1;p.face=sipK>.3?'squeezed':c>.8?'happy':'normal';p.bend=1;

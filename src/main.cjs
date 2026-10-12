@@ -10,7 +10,7 @@ const { sanitize, choose, keepOnScreen, nextDisplay, dueReminders, normalizeWind
 let playing=false;
 let win, settings, tray, timer, state, savePath, drag, travel, attentionHome, social;
 if(process.env.PETIO_PROFILE){const profile=process.env.PETIO_PROFILE;if(!/^[a-z0-9-]{1,30}$/i.test(profile))throw new Error('Invalid test profile');const directory=path.join(app.getPath('appData'),'Petio-prototype-'+profile);fs.mkdirSync(directory,{recursive:true});app.setPath('userData',directory);}
-let action = 'idle', started = Date.now(), until = 0, direction = 1, paused = false, options = false;
+let action = 'idle', started = Date.now(), until = 0, direction = 1, paused = false, options = false, composing = false, chatBox = null, meetUntil = 0;
 let last = Date.now(), lastSave = 0, lastAttention = Date.now(), lastReminderCheck = 0, ignoringMouse, speechUntil=0, lastTrident=0;
 let desiredPosition, logicalDisplayId, pointerCheck=0, petReady=false;
 let petOffset={x:260,y:250};
@@ -35,11 +35,12 @@ function setHeading(c){if(c==='left'||c==='right'){vertical=false;direction=c===
 function cancelTravel(){if(travel&&alive())win.webContents.send('pet-clip',null);travel=null;for(const portal of portalWindows)if(!portal.isDestroyed())portal.destroy();portalWindows=[];}
 let userCue=0; // set when you click something; Boo only makes noise for those, and only some of the time
 function sound(action,preview=false,force=false,hasMessage=false){if(state.type==='boo'&&!force&&action!=='reminder'&&action!=='water'&&(Date.now()-userCue>500||Math.random()<.5))return;if(alive()&&state.sounds&&state.volume>0)win.webContents.send('pet-sound',{type:state.type,action,sounds:state.sounds,volume:state.volume,preview}); if(!hasMessage&&state.prompts&&alive()&&state.sounds&&state.volume>0&&!['reminder','water','menu'].includes(action))emit(soundCaption(state.type));}
-const size = { width: 520, height: 440 };
+const restSize = { width: 520, height: 440 }, chatSize = { width: 880, height: 640 };
+const size = { width: restSize.width, height: restSize.height };
 const preferences = { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, autoplayPolicy:'no-user-gesture-required' };
 function phrase(event='curious') { return characterLine(state.type,event); }
 function save() { try { fs.writeFileSync(savePath + '.tmp', JSON.stringify(state)); fs.renameSync(savePath + '.tmp', savePath); } catch (e) { console.error('Could not save memory:', e.message); } }
-function snapshot(message) { return { ...state, action, started, until, direction, paused, options, playing, message, petX:petOffset.x,petY:petOffset.y,travelContinuous:!!travel?.continuous,travelSplit:travel?.split||.5,climb:action==='walk'?climb:0,need:needLevel,excite:exciteLevel,screens:screen.getAllDisplays().length,quick:quickUntil>Date.now(),menuSide,hidden: !alive() || !win.isVisible(), packaged: app.isPackaged, login: app.getLoginItemSettings().openAtLogin }; }
+function snapshot(message) { return { ...state, action, started, until, direction, paused, options, playing, message, petX:petOffset.x,petY:petOffset.y,travelContinuous:!!travel?.continuous,travelSplit:travel?.split||.5,climb:action==='walk'?climb:0,need:needLevel,excite:exciteLevel,screens:screen.getAllDisplays().length,quick:quickUntil>Date.now(),menuSide,meet:Date.now()<meetUntil,hidden: !alive() || !win.isVisible(), packaged: app.isPackaged, login: app.getLoginItemSettings().openAtLogin }; }
 function ignoreMouse(ignore) { if(alive() && ignoringMouse!==ignore){win.setIgnoreMouseEvents(ignore,{forward:true});ignoringMouse=ignore;} }
 function emit(message) { if(message)speechUntil=Date.now()+(action==='attention'?14000:5500);for (const w of [win, settings]) if (w && !w.isDestroyed()) w.webContents.send('pet-state', snapshot(message)); }
 function act(next, duration = 5000, message, quiet=false) { pendingTurn=null;action = next; started = Date.now(); until = started + duration; emit(message);if(!quiet&&['happy','pet','jump','flip','dance','attention','trident','pounce','hover','vanish','spell','yawn','portalOut','sleep'].includes(next)&&alive()&&win.isVisible())sound(next,false,false,!!message); }
@@ -67,6 +68,28 @@ function shift(change){
  win.setOpacity(0);change();
  setTimeout(()=>{if(alive())win.setOpacity(1);},90);
 }
+function pushView(){
+ if(!alive())return;
+ const b=win.getBounds(),d=screen.getDisplayMatching(b).workArea,v={l:Math.max(0,d.x-b.x),r:Math.min(size.width,d.x+d.width-b.x),t:Math.max(0,d.y-b.y),b:Math.min(size.height,d.y+d.height-b.y),w:size.width,h:size.height},key=JSON.stringify(v);
+ if(key===lastView)return;lastView=key;viewBox=v;win.webContents.send('pet-view',v);
+}
+function placeComposer(open){
+ if(!alive())return;
+ composing=open;
+ ignoreMouse(!(open||options||drag||playing));
+ const world=nativeAnchor();
+ if(open){
+  size.width=chatSize.width;size.height=chatSize.height;
+  const area=state.zone||screen.getDisplayNearestPoint(nativePoint(world)).workArea;
+  const side=area.x+area.width-world.x>=world.x-area.x?'right':'left';
+  const desired={x:side==='right'?160:size.width-160,y:Math.round(size.height*.62)};
+  const safe=keepOnScreen({x:world.x-desired.x,y:world.y-desired.y,width:size.width,height:size.height},area,size);
+  const next={x:world.x-safe.x,y:world.y-safe.y};
+  petOffset=next;move(world);emit();pushView();
+ }else if(!options){
+  chatBox=null;size.width=restSize.width;size.height=restSize.height;const at=nativeAnchor();petOffset={x:260,y:250};move(at);emit();pushView();
+ }
+}
 function setOptions(open, immediate=false) {
  if (!alive()) return;
  clearTimeout(closeTimer);
@@ -77,6 +100,7 @@ function setOptions(open, immediate=false) {
   const safe=keepOnScreen(win.getBounds(),screen.getDisplayNearestPoint(nativePoint(world)).workArea,size),next={x:world.x-safe.x,y:world.y-safe.y},apply=()=>{petOffset=next;move(world);ignoreMouse(false);act('happy',30000,undefined,true);};
   next.x!==petOffset.x||next.y!==petOffset.y?shift(apply):apply();sound('menu',true);}
  else{
+  if(composing){emit();return;}
   const apply=()=>{const at=nativeAnchor();petOffset={x:260,y:250};move(at);emit();},moved=petOffset.x!==260||petOffset.y!==250;
   // Let the renderer play its closing animation before the window is moved back, otherwise the menu would blink out.
   if(!moved)apply();else if(immediate)shift(apply);else{emit();closeTimer=setTimeout(()=>{if(alive()&&!options)shift(apply);},340);}
@@ -209,14 +233,14 @@ function scratchUpdate(c,hit,s,now,dt){
 function secure(w) { w.webContents.setWindowOpenHandler(() => ({ action: 'deny' })); w.webContents.on('will-navigate', e => e.preventDefault()); }
 function closeGames(){if(!playing)return;playing=false;lastAttention=Date.now();setOptions(false);if(alive())act('idle',1500,undefined,true);}
 function openGames(){if(social?.isAway())return;cancelTravel();drag=null;needLevel=0;attentionHome=null;playing=true;setOptions(true);const world=nativeAnchor(),area=screen.getDisplayNearestPoint(nativePoint(world)).workArea,safe=keepOnScreen({x:world.x-260,y:world.y-355},area,size);petOffset={x:world.x-safe.x,y:world.y-safe.y};move(world);act('gameThink',30000,undefined,true);}
-function openSettings(tab = 'appearance') {
+function openSettings(tab = 'appearance', maximize = false) {
  closeGames();
  setOptions(false);
- if (settings && !settings.isDestroyed()) { settings.show(); settings.focus(); settings.webContents.send('settings-tab', tab); return; }
- settings = new BrowserWindow({ icon: appIcon, width: 1000, height: 780, minWidth: 740, minHeight: 620, backgroundColor: '#10131b', autoHideMenuBar: true, title: 'Petio · Your little companion', webPreferences: preferences });
+ if (settings && !settings.isDestroyed()) { settings.show(); settings.focus(); if(maximize)settings.maximize(); settings.webContents.send('settings-tab', tab); return; }
+ settings = new BrowserWindow({ icon: appIcon, width: 1000, height: 780, minWidth: 740, minHeight: 620, backgroundColor: '#1c1814', autoHideMenuBar: true, title: 'Petio · Your little companion', webPreferences: preferences });
  if (process.platform === 'win32') settings.setAppDetails({ appId: 'studio.petio.desktop', appIconPath: app.isPackaged ? process.execPath : path.join(__dirname, '../build/petio.ico'), appIconIndex: 0, relaunchDisplayName: 'Petio' });
  secure(settings); settings.loadFile(path.join(__dirname, 'settings.html'));
- settings.webContents.once('did-finish-load', () => { emit(); settings.webContents.send('settings-tab', tab); });
+ settings.webContents.once('did-finish-load', () => { emit(); if(maximize)settings.maximize(); settings.webContents.send('settings-tab', tab); });
  settings.on('closed', () => { settings = null; });
 }
 function attention(manual = false) {
@@ -271,7 +295,7 @@ function perform(command) {
  cancelTravel(); attentionHome = null; lastAttention = Date.now();
  // "Stay here" and "Explore" are the same switch as Settings > Wander around, so they always agree.
  if(command==='idle'||command==='wander'||command==='visit'){const want=command!=='idle';if(state.roaming!==want){state.roaming=want;save();}}
- if (command === 'settings' || command === 'reminder') return openSettings(command === 'reminder' ? 'reminders' : 'appearance');
+ if (command === 'settings' || command === 'reminder' || command === 'friends') return openSettings(command === 'reminder' ? 'reminders' : command === 'friends' ? 'friends-chat' : 'appearance', command === 'friends');
  if (command === 'attention') return attention(true);
  if(command==='special'){
   const special={miso:['chase','A dangling ball of yarn? This is definitely not a trap.'],drowsy:['yawn','That was a very productive yawn.'],ember:['micdrop','Ladies and gentlemen... me.'],bumble:['pollinate','Pollen run! Honey delivery coming up.'],boo:['vanish','Now you see me… boo!'],merlin:['spell','I summon a sprinkle of good luck.'],luffy:['gomu','Gomu Gomu no...']}[state.type];
@@ -314,6 +338,18 @@ else {
   const trusted=e=>alive()&&(e.sender===win.webContents||(settings&&!settings.isDestroyed()&&e.sender===settings.webContents));
   ipcMain.handle('pet-read',e=>trusted(e)?snapshot():null);
   social=require('./social.cjs').startSocial({directory:app.getPath('userData'),readPet:()=>state,
+   readHost:()=>{const p=nativeAnchor();return {type:state.type,x:p.x,y:p.y,scale:state.scale,busy:!!(options||composing||drag||playing||travel)||['sleep','dead','beg','carried','gameThink'].includes(action)||!alive()||!win.isVisible()};},
+   onNotice:n=>{
+    if(!n||typeof n.name!=='string')return;
+    const {notePlain}=require('./note-gifs.js');
+    const spoken=n.kind==='message'&&typeof n.text==='string'?notePlain(n.text):'';
+    const text=n.kind==='join'?n.name+' joined your group':spoken?n.name+': '+(spoken.length>140?spoken.slice(0,139)+'…':spoken):'';
+    if(!text)return;
+    if(Notification.isSupported())new Notification({title:n.kind==='message'?n.name:'Petio',body:n.kind==='message'?spoken:text,icon:appIcon}).show();
+    const bubble=n.kind==='message'?n.name+': '+n.text:text;
+    if(alive()&&win.isVisible()&&!travel&&!drag&&!playing&&action!=='portalOut')act('happy',n.kind==='message'?9000:7000,bubble);
+   },
+   onPlay:(guest,side)=>{if(!alive()||!win.isVisible()||options||drag||playing||travel||['sleep','dead','beg','carried','gameThink','portalOut','portalIn'].includes(action))return;const duo=require('./pairs.js').pairPlay(state.type,guest);direction=side>0?-1:1;meetUntil=Date.now()+3400;act(duo.host,3400,undefined,true);},
    setAway:async away=>{cancelTravel();drag=null;options=false;needLevel=0;if(away&&alive()){
     closeGames();
     act('portalOut',850,'Off to visit a friend! ✨');
@@ -323,10 +359,12 @@ else {
     await new Promise(resolve=>setTimeout(resolve,850));if(!portal.isDestroyed())portal.destroy();if(alive())win.hide();
    }else if(alive()&&!hiddenByFull)win.showInactive();},
    returned:message=>{if(alive())act('happy',8000,message);},
-   onState:value=>{if(settings&&!settings.isDestroyed())settings.webContents.send('social-state',value);}
+   onState:value=>{if(settings&&!settings.isDestroyed())settings.webContents.send('social-state',value);if(alive())win.webContents.send('social-state',value);}
   });
   ipcMain.handle('social-read',e=>trusted(e)?social.state():null);
   ipcMain.handle('social-command',(e,data)=>trusted(e)?social.command(data):{error:'Untrusted request.'});
+  ipcMain.on('pet-composer',(e,open)=>{if(!alive()||e.sender!==win.webContents||typeof open!=='boolean'||open===composing)return;placeComposer(open);});
+  ipcMain.on('pet-composer-box',(e,box)=>{if(!alive()||e.sender!==win.webContents)return;chatBox=box&&[box.x,box.y,box.w,box.h].every(Number.isFinite)?box:null;});
   ipcMain.handle('pet-settings',(e,patch)=>{
    if(!trusted(e)||!patch||typeof patch!=='object')return null;
    const allowed=['type','scale','speed','personality','roaming','alwaysOnTop','attention','attentionMinutes','menuSize','lookAt','aware','notify','water','waterMinutes','prompts','crossScreens','sounds','volume'];
@@ -367,8 +405,8 @@ else {
    if(command==='menu'){if(playing){closeGames();return;}drag=null;quickUntil=0;setOptions(!options);return;}
    if(command==='more'){drag=null;quickUntil=0;if(!options)setOptions(true);return;}
    if(command==='close'){closeGames();setOptions(false);return;}
-   if(command==='down'){if(playing)return;cancelTravel();attentionHome=null;lastAttention=Date.now();const p=screen.getCursorScreenPoint(),b=win.getBounds();drag={x:p.x-b.x,y:p.y-b.y,startX:p.x,startY:p.y,previousX:p.x,previousY:p.y,moved:false};act('carried',60000);return;}
-   if(command==='up'){if(!drag)return;const moved=drag.moved;drag=null;syncDisplay();monitorHeights.clear();win.webContents.send('pet-motion',{x:0,y:0});if(moved)act('land',600,phrase('land'));else{state.bond=Math.min(100,state.bond+1);options?setOptions(false):quickTalk();}return;}
+   if(command==='down'||command==='carry'){if(playing)return;cancelTravel();attentionHome=null;lastAttention=Date.now();const p=screen.getCursorScreenPoint(),b=win.getBounds();drag={x:p.x-b.x,y:p.y-b.y,startX:p.x,startY:p.y,previousX:p.x,previousY:p.y,moved:false,quiet:command==='carry'};act('carried',60000);return;}
+   if(command==='up'){if(!drag)return;const moved=drag.moved,quiet=drag.quiet;drag=null;syncDisplay();monitorHeights.clear();win.webContents.send('pet-motion',{x:0,y:0});if(moved)act('land',600,phrase('land'));else if(quiet)act('idle',3000,undefined,true);else{state.bond=Math.min(100,state.bond+1);options?setOptions(false):quickTalk();}return;}
    perform(command);
   });
   for(const event of ['display-removed','display-metrics-changed'])screen.on(event,()=>{if(alive()){cancelTravel();move(constrain(anchor()));syncDisplay();monitorHeights.clear();}});
@@ -383,7 +421,7 @@ else {
    }
    if(now-lastSave>60000){save();lastSave=now;}
    if(social?.isAway()||!win.isVisible())return;
-   {const b=win.getBounds(),d=screen.getDisplayMatching(b).workArea,v={l:Math.max(0,d.x-b.x),r:Math.min(size.width,d.x+d.width-b.x),t:Math.max(0,d.y-b.y),b:Math.min(size.height,d.y+d.height-b.y)},key=JSON.stringify(v);if(key!==lastView){lastView=key;viewBox=v;win.webContents.send('pet-view',v);}}
+   pushView();
    const c=screen.getCursorScreenPoint(),p=anchor(),hit=nativeAnchor(),s=state.scale;
    scratchUpdate(c,hit,s,now,dt);
    // Head and eyes follow the pointer when it is close enough to the pet.
@@ -395,7 +433,7 @@ else {
    const overButton=overMore;
    const overBubble=overButton||now<speechUntil&&Math.abs(c.x-hit.x)<115&&c.y>hit.y+bubbleBottom-100&&c.y<hit.y+bubbleBottom+8;
    const hitWidth=Math.max(38,100*s),hitTop=['jump','flip','pounce','chase','alert','beg'].includes(action)?220*s:135*s;
-   if(now-pointerCheck>=50||drag||options){pointerCheck=now;ignoreMouse(!options&&!drag&&!overBubble&&!(Math.abs(c.x-hit.x)<hitWidth&&c.y>hit.y-hitTop&&c.y<hit.y+115*s));}
+   if(now-pointerCheck>=50||drag||options||composing){pointerCheck=now;const wb=win.getBounds(),overChat=!!(chatBox&&c.x>=wb.x+chatBox.x&&c.x<=wb.x+chatBox.x+chatBox.w&&c.y>=wb.y+chatBox.y&&c.y<=wb.y+chatBox.y+chatBox.h),overPet=Math.abs(c.x-hit.x)<hitWidth&&c.y>hit.y-hitTop&&c.y<hit.y+115*s;ignoreMouse(!((composing&&(!chatBox||overChat))||options||drag||playing||overBubble||overPet));}
    if(drag){if(!drag.moved&&Math.hypot(c.x-drag.startX,c.y-drag.startY)>5){
     drag.moved=true;
     if(options){const rel={x:drag.x-petOffset.x,y:drag.y-petOffset.y};setOptions(false,true);drag.x=rel.x+petOffset.x;drag.y=rel.y+petOffset.y;} // dragging closes the menu; keep the grab point on the pet

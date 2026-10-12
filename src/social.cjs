@@ -3,8 +3,8 @@ const {localServer,serverAddress,hosted,apiAddress}=require('./social-config.cjs
 const fs=require('node:fs');
 const path=require('node:path');
 const {visitorWindow}=require('./visitor-layout.cjs');
-function startSocial({directory,readPet,setAway,returned,onState}){
- const file=path.join(directory,'social.json');let identity=null,latest={connected:false},visitor=null,visitorStateKey='',busy=false,stopped=false,lastReturn='',away=false,unavailableAt=0,server=localServer;
+function startSocial({directory,readPet,readHost,setAway,returned,onState,onNotice,onPlay}){
+ const file=path.join(directory,'social.json');let identity=null,latest={connected:false},visitor=null,visitorStateKey='',busy=false,stopped=false,lastReturn='',away=false,unavailableAt=0,server=localServer,seenNotices=new Set();
  let profiles={};
  try{const saved=JSON.parse(fs.readFileSync(file,'utf8'));if(saved.version===2){server=serverAddress(saved.server);profiles=saved.profiles||{};}else if(saved.token){profiles[localServer]=saved;}}catch{}
  const loadIdentity=()=>{const saved=profiles[server];identity=saved?{...saved,token:saved.encryptedToken?safeStorage.decryptString(Buffer.from(saved.encryptedToken,'base64')):saved.token}:null;};
@@ -22,6 +22,11 @@ function startSocial({directory,readPet,setAway,returned,onState}){
   if(!res.ok||value.ok!==true||value.service!=='petio')throw new Error(value.error||'This server is not ready for Petio.');
  }
  function closeVisitor(){if(visitor&&!visitor.isDestroyed())visitor.destroy();visitor=null;visitorStateKey='';}
+ function placeVisitor(){
+  let area=screen.getPrimaryDisplay().workArea;
+  try{const host=readHost?.();if(host&&Number.isFinite(host.x)&&Number.isFinite(host.y))area=screen.getDisplayNearestPoint({x:Math.round(host.x),y:Math.round(host.y)}).workArea;}catch{}
+  return visitorWindow(area);
+ }
  function showVisitors(window,visits){
   const key=JSON.stringify(visits);if(key!==visitorStateKey){visitorStateKey=key;window.webContents.send('visitor-state',{visits});}
   window.showInactive();
@@ -40,26 +45,38 @@ function startSocial({directory,readPet,setAway,returned,onState}){
   busy=true;
   try{
    latest={...await request('/state',{capacity:5}),connected:true};unavailableAt=0;
+   for(const n of latest.notices||[])if(n&&n.id&&!seenNotices.has(n.id)){seenNotices.add(n.id);try{onNotice?.(n);}catch{}}
    const v=latest.outgoing;
    if(v){if(!away){away=true;identity.away=true;persist();await setAway(true);}if(v.phase==='departing')await request('/visit/depart',{id:v.id});}
    else if(away){away=false;identity.away=false;persist();setAway(false);const r=latest.recent.at(-1);if(r&&r.id!==lastReturn){lastReturn=r.id;returned(r.reply?`${r.hostName}: ${r.reply}`:'Home again! 🏡');}}
    const incoming=(latest.incomingVisits||(latest.incoming?[latest.incoming]:[])).filter(v=>['arriving','active'].includes(v.phase)).slice(0,5);
    if(incoming.length){
-    const bounds=visitorWindow(screen.getPrimaryDisplay().workArea,incoming.length);
+    const bounds=placeVisitor();
     if(!visitor){
-     visitor=new BrowserWindow({...bounds,frame:false,transparent:true,resizable:false,skipTaskbar:true,alwaysOnTop:true,show:false,webPreferences:{preload:path.join(__dirname,'visitor-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+     visitor=new BrowserWindow({...bounds,frame:false,transparent:true,resizable:false,movable:false,skipTaskbar:true,alwaysOnTop:true,show:false,hasShadow:false,webPreferences:{preload:path.join(__dirname,'visitor-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+     visitor.setIgnoreMouseEvents(true,{forward:true});
      visitor.webContents.setWindowOpenHandler(()=>({action:'deny'}));visitor.webContents.on('will-navigate',e=>e.preventDefault());
      const arrivingWindow=visitor;
      visitor.on('closed',()=>{if(visitor===arrivingWindow){visitor=null;visitorStateKey='';}});
      visitor.webContents.once('did-finish-load',()=>{if(!stopped&&visitor===arrivingWindow&&!arrivingWindow.isDestroyed())showVisitors(arrivingWindow,incoming);});
      visitor.loadFile(path.join(__dirname,'visitor.html'));
-    }else if(!visitor.webContents.isLoading()){visitor.setSize(bounds.width,bounds.height);showVisitors(visitor,incoming);}
+    }else if(!visitor.webContents.isLoading()){
+     const current=visitor.getBounds();
+     if(Math.abs(current.x-bounds.x)>2||Math.abs(current.y-bounds.y)>2||Math.abs(current.width-bounds.width)>2||Math.abs(current.height-bounds.height)>2)visitor.setBounds(bounds);
+     showVisitors(visitor,incoming);
+    }
    }else closeVisitor();
   }catch(e){latest={...latest,connected:false,error:hosted(server)?e.message+' Check the server deployment.':'Local server unavailable. Start npm run social:server.'};closeVisitor();unavailableAt||=Date.now();if(away&&Date.now()-unavailableAt>(hosted(server)?40000:20000)){away=false;identity.away=false;persist();setAway(false);returned('The connection faded, so I came home. 🏡');}}
   finally{busy=false;onState({...latest,server,hasProfile:!!identity});}
  }
  let nextPoll=0;const timer=setInterval(()=>{if(Date.now()<nextPoll)return;nextPoll=Date.now()+(hosted(server)?5000:2000);sync();},1000);sync(true);
  ipcMain.on('visitor-hit',(e,hit)=>{if(visitor&&!visitor.isDestroyed()&&e.sender===visitor.webContents&&typeof hit==='boolean')visitor.setIgnoreMouseEvents(!hit,{forward:true});});
+ ipcMain.handle('visitor-host',e=>{
+  if(!visitor||visitor.isDestroyed()||e.sender!==visitor.webContents||typeof readHost!=='function')return null;
+  const h=readHost();if(!h)return null;const b=visitor.getBounds();
+  return {type:h.type,scale:h.scale||.65,busy:!!h.busy,x:h.x-b.x,y:h.y-b.y};
+ });
+ ipcMain.on('visitor-play',(e,data)=>{if(visitor&&!visitor.isDestroyed()&&e.sender===visitor.webContents&&data&&typeof data.guest==='string'&&typeof data.side==='number'){try{onPlay?.(data.guest,data.side);}catch{}}});
  ipcMain.handle('visitor-return',async(e,reply,id)=>{
   if(!visitor||visitor.isDestroyed()||e.sender!==visitor.webContents)return {error:'Visitor unavailable.'};
   const visits=latest.incomingVisits||(latest.incoming?[latest.incoming]:[]);id||=visits[0]?.id;if(!visits.some(v=>v.id===id))return {error:'Visit ended.'};
@@ -76,11 +93,16 @@ function startSocial({directory,readPet,setAway,returned,onState}){
    else if(data.command==='create')await request('/room/create',{name:data.name});
    else if(data.command==='join')await request('/room/join',{code:data.code});
    else if(data.command==='accept')await request('/preferences',{accept:data.accept,visitorLimit:data.visitorLimit});
-   else if(data.command==='send')await request('/visit/send',{host:data.host,message:data.message,type:readPet().type});
+   else if(data.command==='send')await request('/message',{message:data.message,host:data.host==='group'||typeof data.host!=='string'?'group':data.host,...(typeof data.reply==='string'&&data.reply?{reply:data.reply}:{})});
+   else if(data.command==='unsend')await request('/unsend',{id:typeof data.id==='string'?data.id:''});
+   else if(data.command==='react')await request('/react',{id:typeof data.id==='string'?data.id:'',emoji:typeof data.emoji==='string'?data.emoji:''});
+   else if(data.command==='pin')await request('/pin',{id:typeof data.id==='string'?data.id:''});
+   else if(data.command==='typing')await request('/typing',{host:data.host==='group'||typeof data.host!=='string'?'group':data.host,active:data.active!==false});
+   else if(data.command==='seen')await request('/seen',{host:data.host==='group'||typeof data.host!=='string'?'group':data.host});
    else if(data.command==='recall')await request('/visit/return',{id:latest.outgoing?.id});
    else if(data.command!=='refresh')throw new Error('Unknown action.');
    await sync(!identity);return {ok:!latest.error,state:{...latest,server,hasProfile:!!identity}};
   }catch(e){return {error:e.message};}
- },stop(){stopped=true;clearInterval(timer);closeVisitor();ipcMain.removeHandler('visitor-return');ipcMain.removeAllListeners('visitor-hit');}};
+ },stop(){stopped=true;clearInterval(timer);closeVisitor();ipcMain.removeHandler('visitor-return');ipcMain.removeHandler('visitor-host');ipcMain.removeAllListeners('visitor-hit');ipcMain.removeAllListeners('visitor-play');}};
 }
 module.exports={startSocial};

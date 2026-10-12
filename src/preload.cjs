@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('pet', {
-  command: command => { if (['games', 'down', 'up', 'menu', 'more', 'notifications', 'close', 'pet', 'jump', 'flip', 'dead', 'dance', 'sleep', 'idle', 'wander', 'settings', 'reminder', 'attention', 'visit', 'special', 'sound-test'].includes(command)) ipcRenderer.send('pet-command', command); },
+  command: command => { if (['games', 'down', 'up', 'carry', 'menu', 'more', 'notifications', 'close', 'pet', 'jump', 'flip', 'dead', 'dance', 'sleep', 'idle', 'wander', 'settings', 'reminder', 'attention', 'visit', 'special', 'sound-test', 'friends'].includes(command)) ipcRenderer.send('pet-command', command); },
   onSound: callback => ipcRenderer.on('pet-sound', (_event, sound) => callback(sound)),
   look: callback => ipcRenderer.on('pet-look', (_event, v) => callback(v)),
   view: callback => ipcRenderer.on('pet-view', (_event, v) => callback(v)),
@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld('pet', {
   socialRead: () => ipcRenderer.invoke('social-read'),
   socialCommand: data => ipcRenderer.invoke('social-command',data),
   socialSubscribe: callback => ipcRenderer.on('social-state',(_event,state)=>callback(state)),
+  composer: open => ipcRenderer.send('pet-composer',!!open),
+  composerBox: box => ipcRenderer.send('pet-composer-box', box&&typeof box==='object'?{x:Number(box.x),y:Number(box.y),w:Number(box.w),h:Number(box.h)}:null),
+  onNoteClose: callback => ipcRenderer.on('pet-note-close',()=>callback()),
   read: () => ipcRenderer.invoke('pet-read'),
   zoneSet: () => ipcRenderer.invoke('pet-zone-set'),
   zoneClear: () => ipcRenderer.invoke('pet-zone-clear'),
