@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const appIcon = path.join(__dirname, 'assets/petio.png');
 if (process.platform === 'win32') app.setAppUserModelId('studio.petio.desktop');
 const { sanitize, choose, keepOnScreen, nextDisplay, dueReminders, normalizeWindow, nextWindowTime, nativePoint, ghostTravelPoint, types } = require('./brain.cjs');
-let gameWindow;
+let playing=false;
 let win, settings, tray, timer, state, savePath, drag, travel, attentionHome, social;
 if(process.env.PETIO_PROFILE){const profile=process.env.PETIO_PROFILE;if(!/^[a-z0-9-]{1,30}$/i.test(profile))throw new Error('Invalid test profile');const directory=path.join(app.getPath('appData'),'Petio-prototype-'+profile);fs.mkdirSync(directory,{recursive:true});app.setPath('userData',directory);}
 let action = 'idle', started = Date.now(), until = 0, direction = 1, paused = false, options = false;
@@ -39,7 +39,7 @@ const size = { width: 520, height: 440 };
 const preferences = { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, autoplayPolicy:'no-user-gesture-required' };
 function phrase(event='curious') { return characterLine(state.type,event); }
 function save() { try { fs.writeFileSync(savePath + '.tmp', JSON.stringify(state)); fs.renameSync(savePath + '.tmp', savePath); } catch (e) { console.error('Could not save memory:', e.message); } }
-function snapshot(message) { return { ...state, action, started, until, direction, paused, options, message, petX:petOffset.x,petY:petOffset.y,travelContinuous:!!travel?.continuous,travelSplit:travel?.split||.5,climb:action==='walk'?climb:0,need:needLevel,excite:exciteLevel,screens:screen.getAllDisplays().length,quick:quickUntil>Date.now(),menuSide,hidden: !alive() || !win.isVisible(), packaged: app.isPackaged, login: app.getLoginItemSettings().openAtLogin }; }
+function snapshot(message) { return { ...state, action, started, until, direction, paused, options, playing, message, petX:petOffset.x,petY:petOffset.y,travelContinuous:!!travel?.continuous,travelSplit:travel?.split||.5,climb:action==='walk'?climb:0,need:needLevel,excite:exciteLevel,screens:screen.getAllDisplays().length,quick:quickUntil>Date.now(),menuSide,hidden: !alive() || !win.isVisible(), packaged: app.isPackaged, login: app.getLoginItemSettings().openAtLogin }; }
 function ignoreMouse(ignore) { if(alive() && ignoringMouse!==ignore){win.setIgnoreMouseEvents(ignore,{forward:true});ignoringMouse=ignore;} }
 function emit(message) { if(message)speechUntil=Date.now()+(action==='attention'?14000:5500);for (const w of [win, settings]) if (w && !w.isDestroyed()) w.webContents.send('pet-state', snapshot(message)); }
 function act(next, duration = 5000, message, quiet=false) { pendingTurn=null;action = next; started = Date.now(); until = started + duration; emit(message);if(!quiet&&['happy','pet','jump','flip','dance','attention','trident','pounce','hover','vanish','spell','yawn','portalOut','sleep'].includes(next)&&alive()&&win.isVisible())sound(next,false,false,!!message); }
@@ -207,17 +207,10 @@ function scratchUpdate(c,hit,s,now,dt){
  }
 }
 function secure(w) { w.webContents.setWindowOpenHandler(() => ({ action: 'deny' })); w.webContents.on('will-navigate', e => e.preventDefault()); }
-function openGames() {
- if (social?.isAway()) return;
- if (gameWindow && !gameWindow.isDestroyed()) { gameWindow.show(); gameWindow.focus(); return; }
- cancelTravel(); drag=null; needLevel=0; attentionHome=null; setOptions(false,true); act('idle',30000,undefined,true);
- const area=screen.getDisplayNearestPoint(nativePoint(anchor())).workArea,p=anchor(),width=Math.min(380,area.width),height=Math.min(560,area.height);
- gameWindow=new BrowserWindow({x:Math.round(Math.max(area.x,Math.min(area.x+area.width-width,p.x+75))),y:Math.round(Math.max(area.y,Math.min(area.y+area.height-height,p.y-height/2))),width,height,icon:appIcon,frame:false,resizable:false,alwaysOnTop:state.alwaysOnTop,backgroundColor:'#151722',webPreferences:{preload:path.join(__dirname,'games-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
- if(process.platform==='win32')gameWindow.setAppDetails({appId:'studio.petio.desktop',appIconPath:app.isPackaged?process.execPath:path.join(__dirname,'../build/petio.ico'),appIconIndex:0,relaunchDisplayName:'Petio'});
- secure(gameWindow);gameWindow.loadFile(path.join(__dirname,'games.html'));
- gameWindow.on('closed',()=>{gameWindow=null;lastAttention=Date.now();if(alive())act('idle',1500,undefined,true);});
-}
+function closeGames(){if(!playing)return;playing=false;lastAttention=Date.now();setOptions(false);if(alive())act('idle',1500,undefined,true);}
+function openGames(){if(social?.isAway())return;cancelTravel();drag=null;needLevel=0;attentionHome=null;playing=true;setOptions(true);const world=nativeAnchor(),area=screen.getDisplayNearestPoint(nativePoint(world)).workArea,safe=keepOnScreen({x:world.x-260,y:world.y-355},area,size);petOffset={x:world.x-safe.x,y:world.y-safe.y};move(world);act('gameThink',30000,undefined,true);}
 function openSettings(tab = 'appearance') {
+ closeGames();
  setOptions(false);
  if (settings && !settings.isDestroyed()) { settings.show(); settings.focus(); settings.webContents.send('settings-tab', tab); return; }
  settings = new BrowserWindow({ icon: appIcon, width: 1000, height: 780, minWidth: 740, minHeight: 620, backgroundColor: '#10131b', autoHideMenuBar: true, title: 'Petio · Your little companion', webPreferences: preferences });
@@ -310,7 +303,7 @@ else {
   try { state=sanitize(JSON.parse(fs.readFileSync(savePath,'utf8')) ?? {}); } catch { state=sanitize(); }
   win=new BrowserWindow({ icon:appIcon, ...size, frame:false, transparent:true, resizable:false, maximizable:false, fullscreenable:false, skipTaskbar:true, alwaysOnTop:state.alwaysOnTop, show:false, hasShadow:false, webPreferences:preferences });
   win.on('closed',()=>{clearInterval(timer);drag=null;cancelTravel();win=null;app.quit();});
-  win.on('blur',()=>{if(options&&!drag)setOptions(false);});win.on('hide',()=>emit());win.on('show',()=>{if(social?.isAway()){win.hide();return;}ignoringMouse=undefined;ignoreMouse(false);emit();});
+  win.on('blur',()=>{if(options&&!drag&&!playing)setOptions(false);});win.on('hide',()=>emit());win.on('show',()=>{if(social?.isAway()){win.hide();return;}ignoringMouse=undefined;ignoreMouse(false);emit();});
   secure(win);win.webContents.on('did-finish-load',()=>{win.webContents.setZoomFactor(1);win.webContents.setVisualZoomLevelLimits(1,1);});win.loadFile(path.join(__dirname,'index.html'));
   const primary=screen.getPrimaryDisplay(),a=primary.workArea;logicalDisplayId=primary.id;move(constrain({ x:a.x+a.width-200, y:a.y+a.height-160 }));
   win.webContents.once('did-finish-load', () => { if(alive()){petReady=true;win.showInactive();// Launched at login, or soon after the PC booted with launch-at-login on: a big excited hello instead of the usual one.
@@ -322,7 +315,7 @@ else {
   ipcMain.handle('pet-read',e=>trusted(e)?snapshot():null);
   social=require('./social.cjs').startSocial({directory:app.getPath('userData'),readPet:()=>state,
    setAway:async away=>{cancelTravel();drag=null;options=false;needLevel=0;if(away&&alive()){
-    if(gameWindow)gameWindow.close();
+    closeGames();
     act('portalOut',850,'Off to visit a friend! ✨');
     const p=anchor(),point=nativePoint({x:p.x-48,y:p.y-110});
     const portal=new BrowserWindow({...point,width:96,height:220,frame:false,transparent:true,resizable:false,skipTaskbar:true,alwaysOnTop:true,show:false,hasShadow:false,webPreferences:{preload:path.join(__dirname,'overlay-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
@@ -363,18 +356,18 @@ else {
    }
    save();emit();return {ok:true};
   });
-  ipcMain.handle('game-read',e=>e.sender===gameWindow?.webContents?{type:state.type,name:({miso:'Miso',ember:'Ember',bumble:'Bumble',boo:'Boo',drowsy:'Drowsy',merlin:'Merlin',luffy:'Luffy'})[state.type]}:null);
-  ipcMain.on('game-close',e=>{if(e.sender===gameWindow?.webContents)gameWindow.close();});
-  ipcMain.on('game-result',(e,result)=>{if(e.sender!==gameWindow?.webContents||!['pet','player','draw'].includes(result))return;act(result==='pet'?'happy':result==='player'?'curious':'idle',2200,undefined,true);sound(result==='pet'?'happy':'menu',true);});
+  ipcMain.on('game-close',e=>{if(trusted(e)&&e.sender===win?.webContents)closeGames();});
+  ipcMain.on('game-phase',(e,phase)=>{if(!playing||e.sender!==win?.webContents||!['think','reveal','place'].includes(phase))return;act(phase==='think'?'gameThink':phase==='reveal'?'gameReveal':'gamePlace',phase==='think'?30000:900,undefined,true);});
+  ipcMain.on('game-result',(e,result)=>{if(!playing||e.sender!==win?.webContents||!['pet','player','draw'].includes(result))return;act(result==='pet'?'happy':result==='player'?'gameLose':'gameDraw',2200,undefined,true);sound(result==='pet'?'happy':'menu',true);});
   ipcMain.on('pet-command',(e,command)=>{
    if(!trusted(e))return;
    if(command==='games'){openGames();return;}
    if(command==='sound-test'){sound('happy',true,true);return;}
    if(command==='notifications'){openNoticeApp();return;}
-   if(command==='menu'){drag=null;quickUntil=0;setOptions(!options);return;}
+   if(command==='menu'){if(playing){closeGames();return;}drag=null;quickUntil=0;setOptions(!options);return;}
    if(command==='more'){drag=null;quickUntil=0;if(!options)setOptions(true);return;}
-   if(command==='close'){setOptions(false);return;}
-   if(command==='down'){cancelTravel();attentionHome=null;lastAttention=Date.now();const p=screen.getCursorScreenPoint(),b=win.getBounds();drag={x:p.x-b.x,y:p.y-b.y,startX:p.x,startY:p.y,previousX:p.x,previousY:p.y,moved:false};act('carried',60000);return;}
+   if(command==='close'){closeGames();setOptions(false);return;}
+   if(command==='down'){if(playing)return;cancelTravel();attentionHome=null;lastAttention=Date.now();const p=screen.getCursorScreenPoint(),b=win.getBounds();drag={x:p.x-b.x,y:p.y-b.y,startX:p.x,startY:p.y,previousX:p.x,previousY:p.y,moved:false};act('carried',60000);return;}
    if(command==='up'){if(!drag)return;const moved=drag.moved;drag=null;syncDisplay();monitorHeights.clear();win.webContents.send('pet-motion',{x:0,y:0});if(moved)act('land',600,phrase('land'));else{state.bond=Math.min(100,state.bond+1);options?setOptions(false):quickTalk();}return;}
    perform(command);
   });
@@ -386,7 +379,7 @@ else {
     lastReminderCheck=now;
     const reminders=dueReminders(state.reminders,now);
     if(reminders.changed){state.reminders=reminders.pending;save();emit();}
-    if(reminders.due.length){const message=reminders.due.map(r=>r.text).join('\n');cancelTravel();options=false;win.showInactive();act('alert',15000,'🔔 '+phrase('reminder')+'\n'+message);sound('reminder',true);}
+    if(reminders.due.length){closeGames();const message=reminders.due.map(r=>r.text).join('\n');cancelTravel();options=false;win.showInactive();act('alert',15000,'🔔 '+phrase('reminder')+'\n'+message);sound('reminder',true);}
    }
    if(now-lastSave>60000){save();lastSave=now;}
    if(social?.isAway()||!win.isVisible())return;
@@ -417,8 +410,8 @@ else {
     if(drowsy&&(action==='jump'||action==='flip'))state.energy=Math.max(0,state.energy-(action==='flip'?3:6));
     act('idle',4500,state.prompts?phrase(event):undefined);return;
    }
-   if(options&&now>until&&action!=='happy')act('happy',30000,undefined,true); // menu still open: settle back to a calm pose
-   if(paused||options||gameWindow)return;
+   if(options&&now>until&&action!=='happy'&&!playing)act('happy',30000,undefined,true); // menu still open: settle back to a calm pose
+   if(paused||options||playing)return;
    if(travel){
     if(travel.pending)return;
     const progress=(now-travel.start)/(travel.duration||1800);

@@ -1,1 +1,0 @@
-const {contextBridge,ipcRenderer}=require('electron');contextBridge.exposeInMainWorld('game',{read:()=>ipcRenderer.invoke('game-read'),react:result=>{if(['pet','player','draw'].includes(result))ipcRenderer.send('game-result',result);},close:()=>ipcRenderer.send('game-close')});

@@ -1,5 +1,9 @@
 function actionPose(action,progress,time,type='miso',need=0){
  const p={y:0,squash:1,bend:0,leftArm:0,rightArm:0,leftFoot:0,rightFoot:0,rotation:0,xscale:1,size:1,ball:null,dx:0,lean:0,face:'normal'};
+ if(action==='gameThink'){const beat=Math.sin(time*(type==='drowsy'?3:9));p.rightArm=7+beat*5;p.leftArm=4-beat*2;p.lean=beat*.04;p.face='focused';p.y=-Math.abs(beat)*.6;return p;}
+ if(action==='gameReveal'||action==='gamePlace'){const reach=Math.sin(Math.min(1,progress)*Math.PI);p.rightArm=4+reach*10;p.leftArm=2;p.squash=1-.04*Math.sin(progress*Math.PI*2);p.lean=.12*reach;p.face='happy';p.y=-reach;return p;}
+ if(action==='gameLose'){p.leftArm=p.rightArm=-2;p.lean=-.08;p.squash=.94;p.face='closed';return p;}
+ if(action==='gameDraw'){p.leftArm=4+Math.sin(time*5);p.rightArm=4-Math.sin(time*5);p.face='happy';return p;}
  const smooth=x=>x*x*(3-2*x);let air=-1;
  // Luffy uses authored whole-body poses, interpolated between animation frames.
  if(type==='luffy'&&['jump','flip','pounce'].includes(action)){

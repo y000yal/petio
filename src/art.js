@@ -54,6 +54,7 @@ function drawPet(ctx, state, t, age, x, y, scale = 1) {
  if((walking||(type==='luffy'&&a==='gomu'))&&state.direction<0){ctx.translate(60,0);ctx.scale(-1,1);}
  if(broom){ctx.translate(30,53);ctx.rotate((vertical?0:(state.climb||0)*.5)+Math.sin(t*3)*.03);ctx.translate(-30,-53);}
  if(walking&&flying){ctx.translate(30,39);ctx.rotate((type==='boo'?.14:.48)+Math.sin(t*4)*.04);ctx.translate(-30,-39);}
+ const gameHand=(x,y,color)=>{if(!state.playing)return;const hand=state.gameHand;r(x-1,y-1,7,6,'#10111b');r(x,y,5,4,color);if(hand===1){for(let i=0;i<4;i++){r(x+i*2-1,y-6,2,7,'#10111b');r(x+i*2,y-5,1,6,color);}}else if(hand===2){r(x,y-6,2,7,'#10111b');r(x+4,y-6,2,7,'#10111b');r(x,y-5,1,6,color);r(x+4,y-5,1,6,color);}else if(hand!==0){r(x+1,y-4,2,5,color);}};
  const out='#10111b', dark='#191e2b', white='#fff4ed', step=moving||a==='carried'?Math.round(Math.sin(gait)*(weary?.35:2)):0;
  if(lying&&bedIn>0){ // the bed, drawn in the unrotated frame behind him
   ctx.save();ctx.setTransform(lyingBase);ctx.translate(30,65);ctx.scale(bedIn,bedIn);ctx.translate(-30,-65);ctx.globalAlpha*=bedIn;
@@ -208,6 +209,7 @@ function drawPet(ctx, state, t, age, x, y, scale = 1) {
   else if(a==='dance'){const b=Math.sin(t*8);frontSit({pawL:b>0?4:0,pawR:b<0?4:0,wag:12,wagAmp:2,tongue:true});}
   else if(a==='expect'){frontSit({face:'happy',wag:18,wagAmp:2.6,tongue:true,earFlap:Math.sin(t*9)*.6});}
   else if(a==='beg'||a==='alert'){frontSit({pawL:4+Math.round(Math.sin(t*12)),pawR:4-Math.round(Math.sin(t*12)),wag:14,wagAmp:2.2,tongue:true});}
+  else if(a.startsWith('game')){frontSit({pawL:Math.max(0,pose.leftArm*.5),pawR:Math.max(0,pose.rightArm*.6),face:pose.face==='focused'?'angry':pose.face,wag:8,earFlap:Math.sin(t*6)*.5});r(38,47-pose.rightArm/2,5,3,L.C);gameHand(42,51-pose.rightArm,L.C);}
   else frontSit({wag:a==='happy'||a==='curious'?8:4,tongue:a==='happy'});
   if(['welcome'].includes(a))for(let i=0;i<8;i++){const u=(t*1.2+i*.37)%1;r(8+((i*53)%46),14+u*44,2,2,['#ffc531','#cf3b2c','#f6e2c8','#c47a3c'][i%4]);}
   ctx.restore();return;
@@ -223,6 +225,7 @@ function drawPet(ctx, state, t, age, x, y, scale = 1) {
   };
   ctx.save();ctx.translate(0,sway*.5);
   body(1,line);body(0,'#ffffff');
+  if(state.playing){r(41,44-pose.rightArm/2,5,3,line);r(42,44-pose.rightArm/2,4,2,'#ffffff');gameHand(46,49-pose.rightArm,'#ffffff');}
   r(46-3,34,2,20,'#eef0f8');r(25,44,1,11,'#e6e9f4');r(35,46,1,9,'#e6e9f4'); // soft folds in the sheet
   const face=a==='dead'?'dead':sleeping||t%6<.14?'closed':['scratch','pet','hug'].includes(a)?'happy':pose.face,eye=(x,kind)=>{
    if(kind==='dead'){for(let k=0;k<4;k++){r(x+k,34+k,1,1,dark);r(x+3-k,34+k,1,1,dark);}}
@@ -509,5 +512,6 @@ function drawPet(ctx, state, t, age, x, y, scale = 1) {
  if(['grow','spell','spark','pose','hug'].includes(a)){
   for(let i=0;i<7;i++){const angle=i*Math.PI*2/7+age*2,rad=12+Math.sin(age*3)*4;r(30+Math.cos(angle)*rad,37+Math.sin(angle)*rad,2,2,a==='hug'?'#ffacd4':a==='grow'?'#b0f387':p.glow);}
  }
+ if(state.playing)gameHand(44,51-pose.rightArm,p.color);
  ctx.restore();
 }

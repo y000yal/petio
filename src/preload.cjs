@@ -18,3 +18,5 @@ contextBridge.exposeInMainWorld('pet', {
   onTab: callback => ipcRenderer.on('settings-tab', (_event, tab) => callback(tab)),
   subscribe: callback => ipcRenderer.on('pet-state', (_event, state) => callback(state))
 });
+
+contextBridge.exposeInMainWorld('game',{react:result=>{if(['pet','player','draw'].includes(result))ipcRenderer.send('game-result',result);},phase:phase=>{if(['think','reveal','place'].includes(phase))ipcRenderer.send('game-phase',phase);},close:()=>ipcRenderer.send('game-close')});

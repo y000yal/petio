@@ -113,7 +113,7 @@ canvas.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.prevent
 speech.addEventListener('click',()=>window.pet.command(speech.classList.contains('notice')?'notifications':'menu'));
 ring.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const action=b.dataset.action;if(action.startsWith('page:')){menuPage=action.slice(5);renderMenu();}else window.pet.command(action);});
 // Clicking empty space around the pet closes the menu; choosing an option does not.
-document.addEventListener('pointerdown',e=>{if(state.options&&e.target!==canvas&&!e.target.closest('.action'))window.pet.command('close');});
+document.addEventListener('pointerdown',e=>{if(!state.playing&&state.options&&e.target!==canvas&&!e.target.closest('.action'))window.pet.command('close');});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(menuPage!=='home'){menuPage='home';renderMenu();}else window.pet.command('close');}});
 function frame(){
  frameTimer=null;if((document.hidden||state.hidden)&&hasPainted)return;
@@ -122,7 +122,8 @@ function frame(){
  const spring=advanceSwing(swing,swingVelocity,targetSwing,dt);swing=spring.swing;swingVelocity=spring.velocity;stretch+=(targetStretch-stretch)*Math.min(1,dt*10);
  lift+=((state.climb||0)-lift)*Math.min(1,dt*4);look.x+=(lookTarget.x-look.x)*Math.min(1,dt*9);look.y+=(lookTarget.y-look.y)*Math.min(1,dt*9);ctx.clearRect(0,0,520,440);ctx.save();
  if(clip){const x=state.petX+clip.dx;clip.keepLeft?ctx.rect(0,0,Math.max(0,x),440):ctx.rect(Math.min(520,x),0,520,440);ctx.clip();}
- drawPet(ctx,{...state,swing,stretch,climb:lift,look},time,(Date.now()-(state.started||Date.now()))/1000,state.petX,state.petY,state.scale);ctx.restore();
+ drawPet(ctx,{...state,gameHand:window.petGameHand,swing,stretch,climb:lift,look},time,(Date.now()-(state.started||Date.now()))/1000,state.petX,state.petY,state.scale);ctx.restore();
+
  hasPainted=true;if(document.hidden||state.hidden)return;
  if(!state.paused||state.action==='carried'||Math.abs(swing)+Math.abs(swingVelocity)>.002)frameTimer=setTimeout(frame,1000/((['idle','sleep'].includes(state.action)||(state.action==='dead'&&Date.now()-state.started>1500&&state.until-Date.now()>1500))?15:30));
 }
