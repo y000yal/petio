@@ -98,7 +98,7 @@ flowchart TD
   F --> G
 ```
 
-The shared server is `https://petio-backend.vercel.app`, unless your group uses another address. If the server asks for a registration code, tick **I have a registration code** and enter it.
+Use the same server address as your friends. If that server asks for a registration code, tick **I have a registration code** and enter it.
 
 The list on the left is the group and each friend.
 
