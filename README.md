@@ -51,7 +51,7 @@ flowchart LR
 | **1** | Open [Releases](https://github.com/y000yal/petio/releases) and download the installer from the [latest release](https://github.com/y000yal/petio/releases/latest). |
 | **2** | Run **Petio Setup**. Windows SmartScreen may say the publisher is unrecognized, because this build is not signed by a public certificate. Continue when the file came from that latest release. |
 | **3** | Choose a folder and finish. Petio appears on the desktop and in the system tray, next to the clock. |
-| **4** | To update, quit from the tray, return to [Releases](https://github.com/y000yal/petio/releases), and download the new latest release. No uninstall. Your companion, reminders, and friend profile stay on this computer. |
+| **4** | Petio checks the [latest release](https://github.com/y000yal/petio/releases/latest) by itself. With **Auto download** off, it notifies you and waits. Turn **Auto download** on under **Habits & care** and it downloads the release, then asks you to restart. Your companion, reminders, and friend profile stay on this computer. |
 
 ## How to use Petio
 

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, screen, Notification, powerMonitor } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, Tray, nativeImage, screen, Notification, powerMonitor } = require('electron');
 const { characterLine, soundCaption } = require('./characters.js');
 // Light on memory: software rendering is plenty for one small canvas and avoids a heavy GPU process; audio stays in-process.
 app.disableHardwareAcceleration();app.commandLine.appendSwitch('disable-features','AudioServiceOutOfProcess');
@@ -8,7 +8,7 @@ const appIcon = path.join(__dirname, 'assets/petio.png');
 if (process.platform === 'win32') app.setAppUserModelId('studio.petio.desktop');
 const { sanitize, choose, keepOnScreen, nextDisplay, dueReminders, normalizeWindow, nextWindowTime, nativePoint, ghostTravelPoint, types } = require('./brain.cjs');
 let playing=false;
-let win, settings, tray, timer, state, savePath, drag, travel, attentionHome, social;
+let win, settings, tray, timer, state, savePath, drag, travel, attentionHome, social, updates;
 if(process.env.PETIO_PROFILE){const profile=process.env.PETIO_PROFILE;if(!/^[a-z0-9-]{1,30}$/i.test(profile))throw new Error('Invalid test profile');const directory=path.join(app.getPath('appData'),'Petio-prototype-'+profile);fs.mkdirSync(directory,{recursive:true});app.setPath('userData',directory);}
 let action = 'idle', started = Date.now(), until = 0, direction = 1, paused = false, options = false, composing = false, chatBox = null, meetUntil = 0;
 let last = Date.now(), lastSave = 0, lastAttention = Date.now(), lastReminderCheck = 0, ignoringMouse, speechUntil=0, lastTrident=0;
@@ -305,8 +305,9 @@ function perform(command) {
  const actions = { pet: ['pet',4500,phrase()], jump: ['jump',state.type==='luffy'?1800:1300,'Boing!'], flip: ['flip',state.type==='luffy'?2100:1500,'Watch my tiny stunt!'], dead: ['dead',12000,'Dramatic? Me? Never.'], dance: ['dance',6500,'A tiny dance, just for you.'], sleep: ['sleep',60000,'Saving my dreams...'], idle: ['idle',3600000,'I will stay right here.'], wander: ['walk',10000,'Time for a little expedition.'] };
  if (actions[command]) { paused = false; if (command === 'pet') {state.bond = Math.min(100,state.bond+2);if(needLevel){needLevel=0;lastAttention=Date.now();act('relax',5500,phrase('relax'));return;}} act(actions[command][0],actions[command][1],phrase(command==='pet'?'happy':command==='wander'?'walk':command)); save(); } else emit();
 }
-function menu() { return Menu.buildFromTemplate([
+function menu() { const update=updates?updates.snapshot():{status:'idle'}; return Menu.buildFromTemplate([
  { label: 'Petio · Settings & character wardrobe', click: () => openSettings() },
+ { label: update.status==='ready'?'Restart to update':update.status==='downloading'?'Downloading update…':update.status==='available'?'Download update':'Check for updates', enabled:update.status!=='checking'&&update.status!=='downloading', click: () => update.status==='ready'?updates.install():update.status==='available'?updates.download():updates.check() },
  { label: 'Friends & visits', click: () => openSettings('friends') },
  { label: social?.isAway() ? 'Recall travelling companion' : 'Companion is home', enabled:!!social?.isAway(), click: () => social.command({command:'recall'}) },
  { label: 'Reminders', click: () => openSettings('reminders') }, { type: 'separator' },
@@ -336,6 +337,13 @@ else {
   tray=new Tray(nativeImage.createFromPath(appIcon).resize({width:32,height:32})); tray.setToolTip('Petio · Your little companion');
   tray.on('click',()=>tray.popUpContextMenu(menu())); tray.on('right-click',()=>tray.popUpContextMenu(menu()));
   const trusted=e=>alive()&&(e.sender===win.webContents||(settings&&!settings.isDestroyed()&&e.sender===settings.webContents));
+  updates=require('./updates.cjs').startUpdates({app,dialog,autoDownload:state.autoUpdate,getParent:()=>settings&&!settings.isDestroyed()?settings:null,notify:version=>{if(!Notification.isSupported())return;const note=new Notification({title:'Petio update',body:'Petio '+version+' is available. Download and install it from the tray or Habits & care.',icon:appIcon});note.on('click',()=>openSettings('behavior'));note.show();}});
+  updates.subscribe(status=>{if(settings&&!settings.isDestroyed())settings.webContents.send('pet-update',status);});
+  ipcMain.handle('pet-update-status',e=>trusted(e)?updates.snapshot():null);
+  ipcMain.handle('pet-update-check',e=>trusted(e)?updates.check():null);
+  ipcMain.handle('pet-update-install',e=>{if(!trusted(e))return null;updates.install();return updates.snapshot();});
+  ipcMain.handle('pet-update-download',e=>trusted(e)?updates.download():null);
+  if(app.isPackaged)setTimeout(()=>updates.check(),8000);
   ipcMain.handle('pet-read',e=>trusted(e)?snapshot():null);
   social=require('./social.cjs').startSocial({directory:app.getPath('userData'),readPet:()=>state,
    readHost:()=>{const p=nativeAnchor();return {type:state.type,x:p.x,y:p.y,scale:state.scale,busy:!!(options||composing||drag||playing||travel)||['sleep','dead','beg','carried','gameThink'].includes(action)||!alive()||!win.isVisible()};},
@@ -367,11 +375,12 @@ else {
   ipcMain.on('pet-composer-box',(e,box)=>{if(!alive()||e.sender!==win.webContents)return;chatBox=box&&[box.x,box.y,box.w,box.h].every(Number.isFinite)?box:null;});
   ipcMain.handle('pet-settings',(e,patch)=>{
    if(!trusted(e)||!patch||typeof patch!=='object')return null;
-   const allowed=['type','scale','speed','personality','roaming','alwaysOnTop','attention','attentionMinutes','menuSize','lookAt','aware','notify','water','waterMinutes','prompts','crossScreens','sounds','volume'];
+   const allowed=['type','scale','speed','personality','roaming','alwaysOnTop','attention','attentionMinutes','menuSize','lookAt','aware','notify','water','waterMinutes','prompts','crossScreens','sounds','volume','autoUpdate'];
    const safe=Object.fromEntries(allowed.filter(k=>Object.hasOwn(patch,k)).map(k=>[k,patch[k]]));
    state=sanitize({...state,...safe}); applyAwareness(); applyNotifications(); nextWater=0; nextScare=0; cancelTravel(); attentionHome=null; lastAttention=Date.now();
    win.setAlwaysOnTop(state.alwaysOnTop); move(constrain(anchor()));syncDisplay();monitorHeights.clear();
    if(typeof patch.login==='boolean'&&app.isPackaged)app.setLoginItemSettings({openAtLogin:patch.login,args:['--autostart']});
+   if(updates)updates.setAutoDownload(state.autoUpdate);
    save(); act('happy',2500); return snapshot();
   });
   ipcMain.on('pet-preview-sound',(e,type)=>{if(types.includes(type)&&alive()&&state.sounds&&state.volume>0)win.webContents.send('pet-sound',{type,action:'happy',sounds:state.sounds,volume:state.volume,preview:true});});

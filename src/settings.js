@@ -18,7 +18,7 @@ function render(state){
  const card=characterCards[previewType];document.querySelector('#pet-role').textContent=card.role;document.querySelector('#pet-power').textContent=card.power;document.querySelector('#pet-weak').textContent=card.weak;document.querySelector('#pet-info').dataset.tip=card.bio;
  const stats=document.querySelector('#stats');stats.replaceChildren();for(const [k,v] of Object.entries(card.stats)){const row=document.createElement('div');row.className='stat';const n=document.createElement('span');n.textContent=k;const bar=document.createElement('i');const fill=document.createElement('b');fill.style.width=v*10+'%';fill.style.background=p.color;bar.append(fill);const num=document.createElement('em');num.textContent=v;row.append(n,bar,num);stats.append(row);}
  const use=document.querySelector('#use-pet');use.hidden=!other;use.textContent='Use '+p.name;document.querySelector('#preview-eyebrow').textContent=other?'PREVIEW':'ON YOUR DESKTOP';
- for(const id of ['scale','speed','menuSize','lookAt','aware','notify','water','waterMinutes','roaming','crossScreens','attention','attentionMinutes','prompts','alwaysOnTop','login','sounds','volume']){const el=document.getElementById(id);if(document.activeElement!==el){if(el.type==='checkbox')el.checked=state[id];else el.value=state[id];}}
+ for(const id of ['scale','speed','menuSize','lookAt','aware','notify','water','waterMinutes','roaming','crossScreens','attention','attentionMinutes','prompts','alwaysOnTop','login','sounds','volume','autoUpdate']){const el=document.getElementById(id);if(document.activeElement!==el){if(el.type==='checkbox')el.checked=state[id];else el.value=state[id];}}
  document.querySelector('#scale-value').value=Math.round(state.scale*100)+'%';
  // A zone keeps the pet on one screen, so screen-hopping options are switched off while it is set.
  const zone=state.zone,cross=document.querySelector('#crossScreens');
@@ -36,11 +36,22 @@ function render(state){
  }
 }
 async function update(patch){try{render(await window.pet.update(patch));document.querySelector('#saved').textContent='✓ Saved on this computer';}catch{document.querySelector('#saved').textContent='Could not save. Please try again.';}}
-for(const id of ['scale','speed','menuSize','lookAt','aware','notify','water','waterMinutes','roaming','crossScreens','attention','attentionMinutes','prompts','alwaysOnTop','login','sounds','volume']){
+for(const id of ['scale','speed','menuSize','lookAt','aware','notify','water','waterMinutes','roaming','crossScreens','attention','attentionMinutes','prompts','alwaysOnTop','login','sounds','volume','autoUpdate']){
  const input=document.getElementById(id);input.addEventListener('change',()=>{if(!input.checkValidity()){input.reportValidity();return;}update({[id]:input.type==='checkbox'?input.checked:['range','number'].includes(input.type)?Number(input.value):input.value});});
 }
 document.querySelector('#scale').addEventListener('input',e=>document.querySelector('#scale-value').value=Math.round(Number(e.target.value)*100)+'%');
 for(const b of document.querySelectorAll('[data-perform]'))b.addEventListener('click',()=>window.pet.command(b.dataset.perform));
+function paintUpdate(status){
+ const line=document.querySelector('#update-status'),button=document.querySelector('#update-check');
+ if(!line||!button||!status)return;
+ line.textContent=status.message||('Petio '+(status.current||''));
+ button.disabled=status.status==='checking'||status.status==='downloading';
+ button.dataset.update=status.status||'';
+ button.textContent=status.status==='ready'?'Restart to update':status.status==='downloading'?'Downloading…':status.status==='available'?'Download and install':'Check for updates';
+}
+window.pet.onUpdate(paintUpdate);
+window.pet.updateStatus().then(paintUpdate);
+document.querySelector('#update-check').addEventListener('click',()=>{const button=document.querySelector('#update-check');if(button.dataset.update==='ready')window.pet.updateInstall();else if(button.dataset.update==='available')window.pet.updateDownload().then(paintUpdate);else window.pet.updateCheck().then(paintUpdate);});
 document.querySelector('#zone-set').addEventListener('click',async()=>{document.querySelector('#zone-set').disabled=true;try{render(await window.pet.zoneSet());}finally{document.querySelector('#zone-set').disabled=false;}});
 document.querySelector('#zone-clear').addEventListener('click',async()=>render(await window.pet.zoneClear()));
 document.querySelector('#use-pet').addEventListener('click',()=>{if(previewType&&previewType!==current.type)update({type:previewType});});

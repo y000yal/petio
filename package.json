@@ -1,6 +1,6 @@
 {
   "name": "petio",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "Seven expressive desktop companions with reminders, playful physics and friend visits",
   "main": "src/main.cjs",
   "author": "Petio",
@@ -55,6 +55,14 @@
       "createDesktopShortcut": true,
       "installerIcon": "build/petio.ico",
       "uninstallerIcon": "build/petio.ico"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "y000yal",
+      "repo": "petio"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

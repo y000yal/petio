@@ -17,6 +17,11 @@ contextBridge.exposeInMainWorld('pet', {
   zoneClear: () => ipcRenderer.invoke('pet-zone-clear'),
   previewSound: type => ipcRenderer.send('pet-preview-sound', type),
   update: patch => ipcRenderer.invoke('pet-settings', patch),
+  updateStatus: () => ipcRenderer.invoke('pet-update-status'),
+  updateCheck: () => ipcRenderer.invoke('pet-update-check'),
+  updateInstall: () => ipcRenderer.invoke('pet-update-install'),
+  updateDownload: () => ipcRenderer.invoke('pet-update-download'),
+  onUpdate: callback => ipcRenderer.on('pet-update', (_event, status) => callback(status)),
   reminder: data => ipcRenderer.invoke('pet-reminder', data),
   onTab: callback => ipcRenderer.on('settings-tab', (_event, tab) => callback(tab)),
   subscribe: callback => ipcRenderer.on('pet-state', (_event, state) => callback(state))
