@@ -337,7 +337,7 @@ else {
   tray=new Tray(nativeImage.createFromPath(appIcon).resize({width:32,height:32})); tray.setToolTip('Petio · Your little companion');
   tray.on('click',()=>tray.popUpContextMenu(menu())); tray.on('right-click',()=>tray.popUpContextMenu(menu()));
   const trusted=e=>alive()&&(e.sender===win.webContents||(settings&&!settings.isDestroyed()&&e.sender===settings.webContents));
-  updates=require('./updates.cjs').startUpdates({app,dialog,autoDownload:state.autoUpdate,getParent:()=>settings&&!settings.isDestroyed()?settings:null,notify:version=>{if(!Notification.isSupported())return;const note=new Notification({title:'Petio update',body:'Petio '+version+' is available. Download and install it from the tray or Habits & care.',icon:appIcon});note.on('click',()=>openSettings('behavior'));note.show();}});
+  updates=require('./updates.cjs').startUpdates({app,dialog,autoDownload:state.autoUpdate,getParent:()=>settings&&!settings.isDestroyed()?settings:null,notify:version=>{if(!Notification.isSupported())return;const note=new Notification({title:'Petio update',body:'Petio '+version+' is available. Download and install it from the tray or App settings.',icon:appIcon});note.on('click',()=>openSettings('app'));note.show();}});
   updates.subscribe(status=>{if(settings&&!settings.isDestroyed())settings.webContents.send('pet-update',status);});
   ipcMain.handle('pet-update-status',e=>trusted(e)?updates.snapshot():null);
   ipcMain.handle('pet-update-check',e=>trusted(e)?updates.check(true):null);

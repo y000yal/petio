@@ -5,7 +5,7 @@ for(const [id,p] of Object.entries(companions)){
  const c=document.createElement('canvas');c.width=120;c.height=100;const title=document.createElement('strong');title.textContent=p.name;b.append(c,title);b.addEventListener('click',()=>{previewType=id;render(current);});gallery.append(b);
  drawPet(c.getContext('2d'),{type:id,action:'happy',direction:1},1,1,60,51,.48);
 }
-function tab(name){if(name==='friends')name='friends-settings';activeTab=name;const friends=name==='friends-chat'||name==='friends-settings';document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==name);document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name||(b.dataset.tab==='friends'&&friends)));document.querySelector('#breadcrumb').textContent=({appearance:'YOUR COMPANION',behavior:'HABITS & CARE',reminders:'YOUR FRIENDLY REMINDERS','friends-chat':'FRIENDS & VISITS · CHAT','friends-settings':'FRIENDS & VISITS · SETTINGS'})[name]||'YOUR COMPANION';restartPreview();}
+function tab(name){if(name==='friends')name='friends-settings';activeTab=name;const friends=name==='friends-chat'||name==='friends-settings';document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==name);document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.tab===name);b.classList.toggle('open',b.dataset.tab==='friends'&&friends);});document.querySelector('#breadcrumb').textContent=({appearance:'YOUR COMPANION',behavior:'HABITS & CARE',reminders:'YOUR FRIENDLY REMINDERS',app:'APP','friends-chat':'FRIENDS & VISITS · CHAT','friends-settings':'FRIENDS & VISITS · SETTINGS'})[name]||'YOUR COMPANION';restartPreview();}
 for(const b of document.querySelectorAll('[data-tab]'))b.addEventListener('click',()=>tab(b.dataset.tab));
 document.querySelector('.brand').addEventListener('click',e=>{e.preventDefault();tab('appearance');});
 window.pet.onTab(tab);
@@ -18,13 +18,13 @@ function render(state){
  const card=characterCards[previewType];document.querySelector('#pet-role').textContent=card.role;document.querySelector('#pet-power').textContent=card.power;document.querySelector('#pet-weak').textContent=card.weak;document.querySelector('#pet-info').dataset.tip=card.bio;
  const stats=document.querySelector('#stats');stats.replaceChildren();for(const [k,v] of Object.entries(card.stats)){const row=document.createElement('div');row.className='stat';const n=document.createElement('span');n.textContent=k;const bar=document.createElement('i');const fill=document.createElement('b');fill.style.width=v*10+'%';fill.style.background=p.color;bar.append(fill);const num=document.createElement('em');num.textContent=v;row.append(n,bar,num);stats.append(row);}
  const use=document.querySelector('#use-pet');use.hidden=!other;use.textContent='Use '+p.name;document.querySelector('#preview-eyebrow').textContent=other?'PREVIEW':'ON YOUR DESKTOP';
- for(const id of ['scale','speed','menuSize','lookAt','aware','notify','water','waterMinutes','roaming','crossScreens','attention','attentionMinutes','prompts','alwaysOnTop','login','sounds','volume','autoUpdate']){const el=document.getElementById(id);if(document.activeElement!==el){if(el.type==='checkbox')el.checked=state[id];else el.value=state[id];}}
+ for(const id of ['scale','speed','menuSize','personality','lookAt','aware','notify','water','waterMinutes','roaming','crossScreens','attention','attentionMinutes','prompts','alwaysOnTop','login','sounds','volume','autoUpdate']){const el=document.getElementById(id);if(document.activeElement!==el){if(el.type==='checkbox')el.checked=state[id];else el.value=state[id];}}
  document.querySelector('#scale-value').value=Math.round(state.scale*100)+'%';
  // A zone keeps the pet on one screen, so screen-hopping options are switched off while it is set.
  const zone=state.zone,cross=document.querySelector('#crossScreens');
  document.querySelector('#zone-text').textContent=zone?'Zone set: '+zone.width+' × '+zone.height+' px. Your friend stays inside it; cross-screen travel is off while it is set.':'Draw an area of your screen. Your friend will stay inside it and never cross it.';
  document.querySelector('#zone-set').textContent=zone?'Redraw zone':'Set zone';document.querySelector('#zone-clear').hidden=!zone;
- cross.disabled=!!zone;if(zone)cross.checked=false;cross.closest('label').classList.toggle('disabled',!!zone);document.querySelector('#login').disabled=!state.packaged;document.querySelector('#crossScreens').closest('label').hidden=(state.screens||1)<2;
+ cross.disabled=!!zone;if(zone)cross.checked=false;cross.closest('label').classList.toggle('disabled',!!zone);document.querySelector('#login').disabled=!state.packaged;const oneScreen=(state.screens||1)<2;document.querySelector('#crossScreens').closest('label').hidden=oneScreen;document.querySelector('#visit-row').hidden=oneScreen;
  document.querySelector('#login-hint').textContent=state.packaged?'Start your day with a familiar face.':'Disabled while running from source (npm start / dev). Build the installer with npm run dist to use it.';
  const key=JSON.stringify(state.reminders);if(key===reminderKey)return;reminderKey=key;
  const list=document.querySelector('#reminder-list');list.replaceChildren();
@@ -36,7 +36,7 @@ function render(state){
  }
 }
 async function update(patch){try{render(await window.pet.update(patch));document.querySelector('#saved').textContent='✓ Saved on this computer';}catch{document.querySelector('#saved').textContent='Could not save. Please try again.';}}
-for(const id of ['scale','speed','menuSize','lookAt','aware','notify','water','waterMinutes','roaming','crossScreens','attention','attentionMinutes','prompts','alwaysOnTop','login','sounds','volume','autoUpdate']){
+for(const id of ['scale','speed','menuSize','personality','lookAt','aware','notify','water','waterMinutes','roaming','crossScreens','attention','attentionMinutes','prompts','alwaysOnTop','login','sounds','volume','autoUpdate']){
  const input=document.getElementById(id);input.addEventListener('change',()=>{if(!input.checkValidity()){input.reportValidity();return;}update({[id]:input.type==='checkbox'?input.checked:['range','number'].includes(input.type)?Number(input.value):input.value});});
 }
 document.querySelector('#scale').addEventListener('input',e=>document.querySelector('#scale-value').value=Math.round(Number(e.target.value)*100)+'%');
@@ -45,6 +45,7 @@ function paintUpdate(status){
  const line=document.querySelector('#update-status'),button=document.querySelector('#update-check');
  if(!line||!button||!status)return;
  line.textContent=status.message||('Petio '+(status.current||''));
+ const version=document.querySelector('#app-version');if(version&&status.current)version.textContent='Petio '+status.current;
  button.disabled=status.status==='checking'||status.status==='downloading';
  button.dataset.update=status.status||'';
  button.textContent=status.status==='ready'?'Restart to update':status.status==='downloading'?'Downloading…':status.status==='available'?'Download and install':'Check for updates';

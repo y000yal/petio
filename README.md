@@ -51,7 +51,7 @@ flowchart LR
 | **1** | Open [Releases](https://github.com/y000yal/petio/releases) and download the installer from the [latest release](https://github.com/y000yal/petio/releases/latest). |
 | **2** | Run **Petio Setup**. Windows SmartScreen may say the publisher is unrecognized, because this build is not signed by a public certificate. Continue when the file came from that latest release. |
 | **3** | Choose a folder and finish. Petio appears on the desktop and in the system tray, next to the clock. |
-| **4** | Petio checks the [latest release](https://github.com/y000yal/petio/releases/latest) by itself. With **Auto download** off, it notifies you and waits. Turn **Auto download** on under **Habits & care** and it downloads the release, then asks you to restart. Your companion, reminders, and friend profile stay on this computer. |
+| **4** | Petio checks the [latest release](https://github.com/y000yal/petio/releases/latest) by itself. With **Auto download** off, it notifies you and waits. Turn **Auto download** on under **App** and it downloads the release, then asks you to restart. Your companion, reminders, and friend profile stay on this computer. |
 
 ## How to use Petio
 
@@ -152,14 +152,16 @@ Open **Reminders** from the pet or the tray.
 | **Look at my cursor** | The head follows the pointer |
 | **Explore all screens** | Boo glides, Merlin opens a portal, the others hop. One screen: they turn around at the edge |
 | **Character zone** | Stay inside an area you draw |
+| **Mood** | Curious, sleepy, or mischievous |
 | **Ask for attention** | Come to the screen you are using, then go back if you leave them alone |
 | **Little conversations** | Short thoughts in the speech bubble |
 | **Notice what I am doing** | May comment on the app in front. Only the app name and window title are read. They are not saved or sent |
 | **Read my Windows notifications** | Off until you turn it on. The text is shown, not saved or sent |
-| **Water reminders** | Gentle sip nudges through the day |
 | **Soft character sounds** | Quiet notes. No background loop |
-| **Stay above windows** | Keep the pet visible while you work |
-| **Launch at login** | Start with Windows. Installed app only, under **Desktop**. Off when you run from source |
+| **Water reminders** | Under **Reminders**. Gentle sip nudges through the day |
+| **Stay above windows** | Under **App**. Keep the pet visible while you work |
+| **Launch at login** | Under **App**. Installed app only. Off when you run from source |
+| **Auto download** | Under **App**. Off until you turn it on |
 
 ## For developers
 
