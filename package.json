@@ -1,6 +1,6 @@
 {
   "name": "petio",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "Seven expressive desktop companions with reminders, playful physics and friend visits",
   "main": "src/main.cjs",
   "author": "Petio",
@@ -54,7 +54,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "installerIcon": "build/petio.ico",
-      "uninstallerIcon": "build/petio.ico"
+      "uninstallerIcon": "build/petio.ico",
+      "artifactName": "Petio-Setup-${version}.${ext}"
     },
     "publish": {
       "provider": "github",

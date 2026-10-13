@@ -3,21 +3,35 @@ const {autoUpdater}=require('electron-updater');
 function startUpdates({app,dialog,getParent,notify,autoDownload=false}){
  const state={status:'idle',version:'',percent:0,message:'',current:app.getVersion()};
  const listeners=new Set();
- let prompting=false,notified='';
+ let prompting=false,notified='',manual=false;
  const publish=()=>{state.current=app.getVersion();for(const fn of listeners)fn({...state});};
  autoUpdater.autoDownload=!!autoDownload;
  autoUpdater.autoInstallOnAppQuit=true;
  autoUpdater.on('checking-for-update',()=>{state.status='checking';state.message='Checking for updates…';publish();});
  autoUpdater.on('update-available',info=>{
   state.version=info&&info.version||'';state.percent=0;
-  if(autoUpdater.autoDownload){state.status='downloading';state.message='Downloading Petio '+(state.version||'update')+'…';}
-  else{state.status='available';state.message='Petio '+state.version+' is available. Download and install it when you are ready.';if(notified!==state.version){notified=state.version;if(typeof notify==='function')notify(state.version);}}
+  if(autoUpdater.autoDownload){state.status='downloading';state.message='Downloading Petio '+(state.version||'update')+'…';if(manual)say(state.message);}
+  else{state.status='available';state.message='Petio '+state.version+' is available. Download and install it when you are ready.';if(manual)askDownload();else if(notified!==state.version){notified=state.version;if(typeof notify==='function')notify(state.version);}}
   publish();
  });
- autoUpdater.on('update-not-available',()=>{state.status='current';state.message='Petio '+app.getVersion()+' is up to date.';publish();});
+ autoUpdater.on('update-not-available',()=>{state.status='current';state.message='Petio '+app.getVersion()+' is up to date.';publish();if(manual)say(state.message);});
  autoUpdater.on('download-progress',progress=>{state.status='downloading';state.percent=Math.max(0,Math.min(100,Math.round(progress&&progress.percent||0)));state.message='Downloading… '+state.percent+'%';publish();});
  autoUpdater.on('update-downloaded',info=>{state.status='ready';state.version=info&&info.version||state.version;state.percent=100;state.message='Petio '+state.version+' is ready. Restart to install it.';publish();promptRestart();});
- autoUpdater.on('error',()=>{if(state.status==='ready')return;if(state.version&&(state.status==='downloading'||state.status==='available')){state.status='available';state.message='Could not download Petio '+state.version+'. Try again.';publish();return;}state.status='error';state.message='Could not check for updates. Try again in a little while.';publish();});
+ autoUpdater.on('error',()=>{if(state.status==='ready')return;if(state.version&&(state.status==='downloading'||state.status==='available')){state.status='available';state.message='Could not download Petio '+state.version+'. Try again.';publish();if(manual)say(state.message);return;}state.status='error';state.message='Could not check for updates. Try again in a little while.';publish();if(manual)say(state.message);});
+ function say(message){
+  const parent=getParent();
+  dialog.showMessageBox(parent&&!parent.isDestroyed()?parent:undefined,{type:'info',buttons:['OK'],title:'Petio',message}).catch(()=>{});
+ }
+ function askDownload(){
+  if(prompting)return;
+  prompting=true;
+  const parent=getParent();
+  dialog.showMessageBox(parent&&!parent.isDestroyed()?parent:undefined,{
+   type:'info',buttons:['Download and install','Later'],defaultId:0,cancelId:1,title:'Update Petio',
+   message:'Petio '+state.version+' is available',
+   detail:'Download it, then restart to install. Your companion and settings stay on this computer.'
+  }).then(result=>{prompting=false;if(result.response===0)download();}).catch(()=>{prompting=false;});
+ }
  function promptRestart(){
   if(prompting||state.status!=='ready')return;
   prompting=true;
@@ -28,11 +42,12 @@ function startUpdates({app,dialog,getParent,notify,autoDownload=false}){
    detail:'Restart to install it. Your companion, reminders, and chats stay on this computer.'
   }).then(result=>{prompting=false;if(result.response===0)autoUpdater.quitAndInstall(false,true);}).catch(()=>{prompting=false;});
  }
- function check(){
-  if(!app.isPackaged){state.status='dev';state.message='Updates run from the installed app. This source copy stays as it is.';publish();return Promise.resolve({...state});}
+ function check(fromUser){
+  manual=!!fromUser;
+  if(!app.isPackaged){state.status='dev';state.message='Install Petio to check for updates. This copy is running from source.';publish();if(manual)say(state.message);return Promise.resolve({...state});}
   if(state.status==='ready'){promptRestart();return Promise.resolve({...state});}
   if(state.status==='checking'||state.status==='downloading')return Promise.resolve({...state});
-  return autoUpdater.checkForUpdates().then(()=>({...state})).catch(()=>({...state}));
+  return autoUpdater.checkForUpdates().then(()=>({...state})).catch(()=>({...state})).finally(()=>{manual=false;});
  }
  function download(){
   if(!app.isPackaged)return check();

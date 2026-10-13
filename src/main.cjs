@@ -307,7 +307,7 @@ function perform(command) {
 }
 function menu() { const update=updates?updates.snapshot():{status:'idle'}; return Menu.buildFromTemplate([
  { label: 'Petio · Settings & character wardrobe', click: () => openSettings() },
- { label: update.status==='ready'?'Restart to update':update.status==='downloading'?'Downloading update…':update.status==='available'?'Download update':'Check for updates', enabled:update.status!=='checking'&&update.status!=='downloading', click: () => update.status==='ready'?updates.install():update.status==='available'?updates.download():updates.check() },
+ { label: update.status==='ready'?'Restart to update':update.status==='downloading'?'Downloading update…':update.status==='available'?'Download update':'Check for updates', enabled:update.status!=='checking'&&update.status!=='downloading', click: () => update.status==='ready'?updates.install():update.status==='available'?updates.download():updates.check(true) },
  { label: 'Friends & visits', click: () => openSettings('friends') },
  { label: social?.isAway() ? 'Recall travelling companion' : 'Companion is home', enabled:!!social?.isAway(), click: () => social.command({command:'recall'}) },
  { label: 'Reminders', click: () => openSettings('reminders') }, { type: 'separator' },
@@ -340,7 +340,7 @@ else {
   updates=require('./updates.cjs').startUpdates({app,dialog,autoDownload:state.autoUpdate,getParent:()=>settings&&!settings.isDestroyed()?settings:null,notify:version=>{if(!Notification.isSupported())return;const note=new Notification({title:'Petio update',body:'Petio '+version+' is available. Download and install it from the tray or Habits & care.',icon:appIcon});note.on('click',()=>openSettings('behavior'));note.show();}});
   updates.subscribe(status=>{if(settings&&!settings.isDestroyed())settings.webContents.send('pet-update',status);});
   ipcMain.handle('pet-update-status',e=>trusted(e)?updates.snapshot():null);
-  ipcMain.handle('pet-update-check',e=>trusted(e)?updates.check():null);
+  ipcMain.handle('pet-update-check',e=>trusted(e)?updates.check(true):null);
   ipcMain.handle('pet-update-install',e=>{if(!trusted(e))return null;updates.install();return updates.snapshot();});
   ipcMain.handle('pet-update-download',e=>trusted(e)?updates.download():null);
   if(app.isPackaged)setTimeout(()=>updates.check(),8000);
