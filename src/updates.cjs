@@ -1,7 +1,7 @@
-const {autoUpdater}=require('electron-updater');
-
-function startUpdates({app,dialog,getParent,notify,autoDownload=false}){
+function startUpdates({app,dialog,getParent,notify,autoDownload=false,updater}={}){
+ const autoUpdater=updater||require('electron-updater').autoUpdater;
  const state={status:'idle',version:'',percent:0,message:'',current:app.getVersion()};
+ if(!app.isPackaged){state.version='0.6.9';if(!autoDownload){state.status='available';state.message='Update available: Petio 0.6.9';}}
  const listeners=new Set();
  let prompting=false,notified='',manual=false;
  const publish=()=>{state.current=app.getVersion();for(const fn of listeners)fn({...state});};
@@ -42,22 +42,38 @@ function startUpdates({app,dialog,getParent,notify,autoDownload=false}){
    detail:'Restart to install it. Your companion, reminders, and chats stay on this computer.'
   }).then(result=>{prompting=false;if(result.response===0)autoUpdater.quitAndInstall(false,true);}).catch(()=>{prompting=false;});
  }
+ let previewTask=null;
+ function previewDownload(){
+  if(state.status==='ready')return Promise.resolve({...state});
+  if(previewTask)return previewTask;
+  state.version='0.6.9';state.status='downloading';state.percent=0;state.message='Downloading Petio '+state.version+'…';publish();
+  previewTask=new Promise(resolve=>{
+   const step=()=>{
+    state.percent=Math.min(100,state.percent+34);
+    if(state.percent>=100){previewTask=null;state.status='ready';state.percent=100;state.message='Petio '+state.version+' is ready. Restart to install it.';publish();resolve({...state});return;}
+    state.message='Downloading… '+state.percent+'%';publish();setTimeout(step,400);
+   };
+   setTimeout(step,400);
+  });
+  return previewTask;
+ }
  function check(fromUser){
   manual=!!fromUser;
-  if(!app.isPackaged){state.status='dev';state.message='Install Petio to check for updates. This copy is running from source.';publish();if(manual)say(state.message);return Promise.resolve({...state});}
+  if(!app.isPackaged){manual=false;state.version='0.6.9';if(state.status==='ready'||state.status==='downloading')return Promise.resolve({...state});if(autoUpdater.autoDownload)return previewDownload();state.status='available';state.percent=0;state.message='Update available: Petio 0.6.9';publish();return Promise.resolve({...state});}
   if(state.status==='ready'){promptRestart();return Promise.resolve({...state});}
   if(state.status==='checking'||state.status==='downloading')return Promise.resolve({...state});
   return autoUpdater.checkForUpdates().then(()=>({...state})).catch(()=>({...state})).finally(()=>{manual=false;});
  }
  function download(){
-  if(!app.isPackaged)return check();
+  if(!app.isPackaged)return previewDownload();
   if(state.status==='ready'){promptRestart();return Promise.resolve({...state});}
   if(state.status==='checking'||state.status==='downloading')return Promise.resolve({...state});
   state.status='downloading';state.percent=0;state.message='Downloading Petio '+(state.version||'update')+'…';publish();
   return autoUpdater.downloadUpdate().then(()=>({...state})).catch(()=>({...state}));
  }
- function install(){if(state.status==='ready')autoUpdater.quitAndInstall(false,true);else return check();}
+ function install(){if(state.status!=='ready')return check();if(!app.isPackaged)return Promise.resolve({...state});autoUpdater.quitAndInstall(false,true);}
  function setAutoDownload(on){autoUpdater.autoDownload=!!on;if(on&&state.status==='available')return download();}
+ if(!app.isPackaged&&autoUpdater.autoDownload)previewDownload();
  return {check,download,install,setAutoDownload,snapshot:()=>({...state,current:app.getVersion()}),subscribe(fn){listeners.add(fn);fn({...state,current:app.getVersion()});return ()=>listeners.delete(fn);}};
 }
 

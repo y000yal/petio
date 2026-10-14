@@ -54,7 +54,8 @@ function renderMenu(){
  const special=['special',specialIcon[state.type]||'✨','Special'],back=['page:home','↩️','Back'];
  const multi=(state.screens||1)>1&&!state.zone;
  // Each action appears once: signature move on the home page, tricks under Play, calm things under Rest. Screen travel only with 2+ screens.
- const pages={home:[special,['deliver','📜','Chat'],['page:play','🎮','Play'],['page:rest','🛋️','Rest and explore'],['reminder','🔔','Reminders'],['settings','⚙️','Settings'],['close','✖️','Close']],play:[['games','🎲','Play games'],['jump','🦘','Jump'],['flip','🤸','Flip'],['dance','🎵','Dance'],['dead','💀','Play dead'],back],rest:[state.roaming===false?['wander','🧭','Explore']:['idle','📍','Stay here'],['sleep','😴','Take a nap'],...(multi?[['visit','🖥️','Next screen']]:[]),back]};
+ const updateItem=state.update?['update',state.update.status==='ready'?'↻':state.update.status==='downloading'?'⬇':'⬆',state.update.status==='ready'?'Restart to update':state.update.status==='downloading'?'Downloading update':'Update available']:null;
+ const pages={home:[special,['deliver','📜','Chat'],['page:play','🎮','Play'],['page:rest','🛋️','Rest and explore'],['reminder','🔔','Reminders'],['settings','⚙️','Settings'],...(updateItem?[updateItem]:[]),['close','✖️','Close']],play:[['games','🎲','Play games'],['jump','🦘','Jump'],['flip','🤸','Flip'],['dance','🎵','Dance'],['dead','💀','Play dead'],back],rest:[state.roaming===false?['wander','🧭','Explore']:['idle','📍','Stay here'],['sleep','😴','Take a nap'],...(multi?[['visit','🖥️','Next screen']]:[]),back]};
  const icon={small:34,medium:40,large:48}[state.menuSize]||40;ring.replaceChildren();ring.style.setProperty('--icon',icon+'px');ring.style.setProperty('--glyph',Math.round(icon*.52)+'px');const entries=pages[menuPage],step=icon+8,span=(entries.length-1)*step,side=state.menuSide||'right',x=state.petX,y=state.petY,s0=state.scale,reach=Math.max(95,Math.round(175*state.scale)),gap=Math.max(70,Math.round(110*state.scale))+30;
  ring.dataset.side=side;
  // Fan the icons out in an arc around the pet, then nudge them apart so edges of the screen never make them overlap.
@@ -78,7 +79,7 @@ function renderMenu(){
  }
  menuRects=pts.map(p=>({l:p.x-icon/2,t:p.y-icon/2,r:p.x+icon/2,b:p.y+icon/2}));
  entries.forEach(([action,glyph,label],i)=>{
-  const b=document.createElement('button');b.className='action'+(action==='close'||action==='page:home'?' plain':'');b.dataset.action=action;b.textContent=glyph;b.setAttribute('aria-label',label);
+  const b=document.createElement('button');b.className='action'+(action==='close'||action==='page:home'?' plain':'');b.dataset.action=action;const mark=document.createElement('span');mark.textContent=glyph;if(action==='update')mark.className='jump';b.append(mark);b.setAttribute('aria-label',label);
   {const dx=pts[i].x-x,dy=pts[i].y-cy;b.dataset.tip=Math.abs(dx)>Math.abs(dy)*.8?(dx>0?'right':'left'):(dy>0?'down':'up');}
   b.style.left=pts[i].x+'px';b.style.top=pts[i].y+'px';b.style.right='auto';b.style.setProperty('--dx',Math.round((x-pts[i].x)*.55)+'px');b.style.setProperty('--dy',Math.round((cy-pts[i].y)*.55)+'px');b.style.setProperty('--in',i*50+'ms');b.style.setProperty('--out',(n-1-i)*28+'ms');
   if(action==='deliver'&&unreadChats){const badge=document.createElement('span');badge.className='badge';badge.textContent=unreadChats>9?'9+':String(unreadChats);b.append(badge);}
@@ -88,11 +89,12 @@ function renderMenu(){
 function receive(next){
  if(!state.options&&next.options)menuPage='home';const closing=state.options&&!next.options,rebuild=!closing&&(next.options!==state.options||next.type!==state.type||next.petX!==state.petX||next.petY!==state.petY||next.menuSide!==state.menuSide||next.menuSize!==state.menuSize||next.roaming!==state.roaming||next.screens!==state.screens);
  if(next.type!==state.type){speech.classList.remove('visible');clearTimeout(speechTimer);}
- state=next;clearTimeout(ringTimer);const deliver=document.querySelector('#deliver');if(deliver)deliver.dataset.mode=next.chatMode==='dark'?'dark':'light';
+ const prevUpdate=state.update&&state.update.status;state=next;clearTimeout(ringTimer);const deliver=document.querySelector('#deliver');if(deliver)deliver.dataset.mode=next.chatMode==='dark'?'dark':'light';
  if(next.options){ring.classList.remove('closing');ring.hidden=false;}
  else if(closing){menuRects=[];ring.classList.add('closing');ringTimer=setTimeout(()=>{ring.hidden=true;ring.classList.remove('closing');},320);}
  else ring.hidden=true;
- if(rebuild)renderMenu();positionSpeech();canvas.setAttribute('aria-label',companions[next.type].name+' companion. Click for actions or drag to move.');
+ const updateChanged=prevUpdate!==(next.update&&next.update.status);
+ if(rebuild||updateChanged)renderMenu();positionSpeech();canvas.setAttribute('aria-label',companions[next.type].name+' companion. Click for actions or drag to move.');
  if(next.action!=='carried'){targetSwing=0;targetStretch=1;}
  const crossing=['portalOut','portalIn','phase','travel'].includes(next.action);
  if(next.message&&!crossing){const fancy=/\p{Extended_Pictographic}/u.test(notePlain(next.message))||/\[\[gif:[a-z0-9]+\]\]/.test(next.message);renderNote(speech,fancy?next.message:next.message+' ✨');speech.classList.toggle('notice',next.message.startsWith('📩'));speech.classList.add('visible');clearTimeout(speechTimer);speechTimer=setTimeout(()=>speech.classList.remove('visible'),['attention','alert'].includes(next.action)?14000:next.message.startsWith('📩')?8000:next.message.length<20?2600:5500);}

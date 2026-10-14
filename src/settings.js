@@ -5,7 +5,7 @@ for(const [id,p] of Object.entries(companions)){
  const c=document.createElement('canvas');c.width=120;c.height=100;const title=document.createElement('strong');title.textContent=p.name;b.append(c,title);b.addEventListener('click',()=>{previewType=id;render(current);});gallery.append(b);
  drawPet(c.getContext('2d'),{type:id,action:'happy',direction:1},1,1,60,51,.48);
 }
-function tab(name){const parent=document.querySelector('[data-tab="friends"]');if(name==='friends'){parent.classList.toggle('open');return;}activeTab=name;const friends=name==='friends-chat'||name==='friends-settings';document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==name);document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.tab===name||(b.dataset.tab==='friends'&&friends));if(b.dataset.tab==='friends')b.classList.remove('open');});document.querySelector('#breadcrumb').textContent=({appearance:'YOUR COMPANION',behavior:'HABITS & CARE',reminders:'YOUR FRIENDLY REMINDERS',app:'APP','friends-chat':'FRIENDS & VISITS · CHAT','friends-settings':'FRIENDS & VISITS · SETTINGS'})[name]||'YOUR COMPANION';if(name==='friends-chat'&&window.pet)window.pet.closeComposer();restartPreview();}
+function tab(name){const parent=document.querySelector('[data-tab="friends"]');if(name==='friends'){parent.classList.toggle('open');return;}activeTab=name;const friends=name==='friends-chat'||name==='friends-settings';document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==name);document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.tab===name||(b.dataset.tab==='friends'&&friends));if(b.dataset.tab==='friends')b.classList.toggle('open',friends);});document.querySelector('#breadcrumb').textContent=({appearance:'YOUR COMPANION',behavior:'HABITS & CARE',reminders:'YOUR FRIENDLY REMINDERS',app:'APP','friends-chat':'FRIENDS & VISITS · CHAT','friends-settings':'FRIENDS & VISITS · SETTINGS'})[name]||'YOUR COMPANION';if(name==='friends-chat'&&window.pet)window.pet.closeComposer();restartPreview();}
 document.addEventListener('pointerdown',e=>{if(e.target.closest('[data-tab="friends"],.nav-sub'))return;document.querySelector('[data-tab="friends"]')?.classList.remove('open');});
 for(const b of document.querySelectorAll('[data-tab]'))b.addEventListener('click',()=>tab(b.dataset.tab));
 document.querySelector('.brand').addEventListener('click',e=>{e.preventDefault();tab('appearance');});
@@ -31,6 +31,7 @@ function render(state){
  document.querySelector('#zone-set').textContent=zone?'Redraw zone':'Set zone';document.querySelector('#zone-clear').hidden=!zone;
  cross.disabled=!!zone;if(zone)cross.checked=false;cross.closest('label').classList.toggle('disabled',!!zone);document.querySelector('#login').disabled=!state.packaged;const oneScreen=(state.screens||1)<2;document.querySelector('#crossScreens').closest('label').hidden=oneScreen;document.querySelector('#visit-row').hidden=oneScreen;
  document.querySelector('#login-hint').textContent=state.packaged?'Start your day with a familiar face.':'Disabled while running from source (npm start / dev). Build the installer with npm run dist to use it.';
+ const hear=!!state.sounds;document.querySelector('#volume').closest('label').hidden=!hear;document.querySelector('[data-perform="sound-test"]').closest('label').hidden=!hear;
  const key=JSON.stringify(state.reminders);if(key===reminderKey)return;reminderKey=key;
  const list=document.querySelector('#reminder-list');list.replaceChildren();
  if(!state.reminders.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='Nothing to remember yet. A little peace of mind.';list.append(empty);}
@@ -49,11 +50,13 @@ for(const b of document.querySelectorAll('[data-perform]'))b.addEventListener('c
 function paintUpdate(status){
  const line=document.querySelector('#update-status'),button=document.querySelector('#update-check');
  if(!line||!button||!status)return;
- line.textContent=status.message||('Petio '+(status.current||''));
+ line.textContent=status.status==='available'?'Update available: Petio '+(status.version||'a new version'):status.message||('Petio '+(status.current||''));line.classList.toggle('available',status.status==='available'||status.status==='ready');
  const version=document.querySelector('#app-version');if(version&&status.current)version.textContent='Petio '+status.current;
  button.disabled=status.status==='checking'||status.status==='downloading';
  button.dataset.update=status.status||'';
  button.textContent=status.status==='ready'?'Restart to update':status.status==='downloading'?'Downloading…':status.status==='available'?'Download and install':'Check for updates';
+ const note=document.querySelector('[data-tab="app"] .nav-note');
+ if(note){const pending=status.status==='available'||status.status==='downloading'||status.status==='ready';note.hidden=!pending;note.textContent=status.status==='ready'?'Restart':status.status==='downloading'?'…':'Update';}
 }
 window.pet.onUpdate(paintUpdate);
 window.pet.updateStatus().then(paintUpdate);

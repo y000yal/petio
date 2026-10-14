@@ -41,7 +41,7 @@ const preferences = { preload: path.join(__dirname, 'preload.cjs'), contextIsola
 function phrase(event='curious') { return characterLine(state.type,event); }
 function save() { try { fs.writeFileSync(savePath + '.tmp', JSON.stringify(state)); fs.renameSync(savePath + '.tmp', savePath); } catch (e) { console.error('Could not save memory:', e.message); } }
 function appearance(){return state&&(state.chatTheme==='light'||state.chatTheme==='dark')?state.chatTheme:(nativeTheme.shouldUseDarkColors?'dark':'light');}
-function snapshot(message) { return { ...state, chatMode:appearance(), action, started, until, direction, paused, options, playing, message, petX:petOffset.x,petY:petOffset.y,travelContinuous:!!travel?.continuous,travelSplit:travel?.split||.5,climb:action==='walk'?climb:0,need:needLevel,excite:exciteLevel,screens:screen.getAllDisplays().length,quick:quickUntil>Date.now(),menuSide,meet:Date.now()<meetUntil,hidden: !alive() || !win.isVisible(), packaged: app.isPackaged, login: app.getLoginItemSettings().openAtLogin }; }
+function snapshot(message) { const u=updates?updates.snapshot():null,update=u&&(u.status==='available'||u.status==='downloading'||u.status==='ready')?{status:u.status,version:u.version}:null; return { ...state, chatMode:appearance(), action, started, until, direction, paused, options, playing, message, petX:petOffset.x,petY:petOffset.y,travelContinuous:!!travel?.continuous,travelSplit:travel?.split||.5,climb:action==='walk'?climb:0,need:needLevel,excite:exciteLevel,screens:screen.getAllDisplays().length,quick:quickUntil>Date.now(),menuSide,meet:Date.now()<meetUntil,hidden: !alive() || !win.isVisible(), packaged: app.isPackaged, login: app.getLoginItemSettings().openAtLogin, update }; }
 function ignoreMouse(ignore) { if(alive() && ignoringMouse!==ignore){win.setIgnoreMouseEvents(ignore,{forward:true});ignoringMouse=ignore;} }
 function emit(message) { if(message)speechUntil=Date.now()+(action==='attention'?14000:5500);if(settings&&!settings.isDestroyed())settings.setBackgroundColor(appearance()==='light'?'#f7f1e6':'#121216');for (const w of [win, settings]) if (w && !w.isDestroyed()) w.webContents.send('pet-state', snapshot(message)); }
 function act(next, duration = 5000, message, quiet=false) { pendingTurn=null;action = next; started = Date.now(); until = started + duration; emit(message);if(!quiet&&['happy','pet','jump','flip','dance','attention','trident','pounce','hover','vanish','spell','yawn','portalOut','sleep'].includes(next)&&alive()&&win.isVisible())sound(next,false,false,!!message); }
@@ -257,14 +257,15 @@ let openChatHost='';
 function openSettings(tab = 'appearance', maximize = false) {
  closeGames();
  setOptions(false);
- if (settings && !settings.isDestroyed()) { if(settings.closing)return; const host=openChatHost;openChatHost=''; const area=screen.getDisplayMatching(settings.getBounds()).workArea;settings.setBounds({x:area.x,y:area.y,width:area.width,height:area.height});settings.show();settings.focus();liftPet();settings.webContents.send('settings-tab', tab); if(host)settings.webContents.send('settings-open-chat', host); return; }
+ if(updates){const u=updates.snapshot();if(!['checking','downloading','ready'].includes(u.status))updates.check();}
+ if (settings && !settings.isDestroyed()) { if(settings.closing)return; const host=openChatHost;openChatHost=''; const area=screen.getDisplayMatching(settings.getBounds()).workArea;settings.setBounds({x:area.x,y:area.y,width:area.width,height:area.height});settings.show();settings.focus();liftPet();settings.webContents.send('settings-tab', tab); if(updates)settings.webContents.send('pet-update', updates.snapshot()); if(host)settings.webContents.send('settings-open-chat', host); return; }
  const host=openChatHost;openChatHost='';
  const to=settingsTarget();
  settings = new BrowserWindow({ icon: appIcon, ...to, minWidth: 740, minHeight: 620, show: false, frame: false, transparent: true, hasShadow: false, backgroundColor: '#00000000', title: 'Petio · Your little companion', webPreferences: preferences });
  if (process.platform === 'win32') settings.setAppDetails({ appId: 'studio.petio.desktop', appIconPath: app.isPackaged ? process.execPath : path.join(__dirname, '../build/petio.ico'), appIconIndex: 0, relaunchDisplayName: 'Petio' });
  secure(settings); settings.loadFile(path.join(__dirname, 'settings.html'));
  settings.once('ready-to-show',()=>{if(!settings||settings.isDestroyed())return;settings.show();settings.focus();liftPet();playSettingsMotion(true).catch(()=>{});});
- settings.webContents.once('did-finish-load', () => { emit(); settings.webContents.send('settings-tab', tab); if(host)settings.webContents.send('settings-open-chat', host); });
+ settings.webContents.once('did-finish-load', () => { emit(); settings.webContents.send('settings-tab', tab); if(updates)settings.webContents.send('pet-update', updates.snapshot()); if(host)settings.webContents.send('settings-open-chat', host); });
  settings.on('close',event=>{
   if(!settings||settings.skipMotion||app.isQuitting)return;
   event.preventDefault();
@@ -327,7 +328,7 @@ function perform(command) {
  cancelTravel(); attentionHome = null; lastAttention = Date.now();
  // "Stay here" and "Explore" are the same switch as Settings > Wander around, so they always agree.
  if(command==='idle'||command==='wander'||command==='visit'){const want=command!=='idle';if(state.roaming!==want){state.roaming=want;save();}}
- if (command === 'settings' || command === 'reminder' || command === 'friends') return openSettings(command === 'reminder' ? 'reminders' : command === 'friends' ? 'friends-chat' : 'appearance', command === 'friends');
+ if (command === 'settings' || command === 'reminder' || command === 'friends' || command === 'update') return openSettings(command === 'reminder' ? 'reminders' : command === 'friends' ? 'friends-chat' : command === 'update' ? 'app' : 'appearance', command === 'friends');
  if (command === 'attention') return attention(true);
  if(command==='special'){
   const special={miso:['chase','A dangling ball of yarn? This is definitely not a trap.'],drowsy:['yawn','That was a very productive yawn.'],ember:['micdrop','Ladies and gentlemen... me.'],bumble:['pollinate','Pollen run! Honey delivery coming up.'],boo:['vanish','Now you see me… boo!'],merlin:['spell','I summon a sprinkle of good luck.'],luffy:['gomu','Gomu Gomu no...']}[state.type];
@@ -371,13 +372,14 @@ else {
   tray=new Tray(nativeImage.createFromPath(path.join(__dirname,'assets/petio-32.png'))); tray.setToolTip('Petio · Your little companion');
   tray.on('click',()=>tray.popUpContextMenu(menu())); tray.on('right-click',()=>tray.popUpContextMenu(menu()));
   const trusted=e=>alive()&&(e.sender===win.webContents||(settings&&!settings.isDestroyed()&&e.sender===settings.webContents));
-  updates=require('./updates.cjs').startUpdates({app,dialog,autoDownload:state.autoUpdate,getParent:()=>settings&&!settings.isDestroyed()?settings:null,notify:version=>{if(!Notification.isSupported())return;const note=new Notification({title:'Petio update',body:'Petio '+version+' is available. Download and install it from the tray or App settings.',icon:appIcon});note.on('click',()=>openSettings('app'));note.show();}});
-  updates.subscribe(status=>{if(settings&&!settings.isDestroyed())settings.webContents.send('pet-update',status);});
+  updates=require('./updates.cjs').startUpdates({app,dialog,autoDownload:state.autoUpdate,getParent:()=>settings&&!settings.isDestroyed()?settings:null,notify:version=>{if(Notification.isSupported()){const note=new Notification({title:'Petio update',body:'Petio '+version+' is available. Download and install it from the tray or App settings.',icon:appIcon});note.on('click',()=>openSettings('app'));note.show();}if(alive()&&win.isVisible()&&!travel&&!drag&&!playing&&action!=='portalOut')act('happy',9000,'Petio '+version+' is available');}});
+  const trayTip=status=>{if(!tray)return;tray.setToolTip(status&&status.status==='ready'?'Petio · Restart to update':status&&status.status==='downloading'?'Petio · Downloading update':status&&status.status==='available'?'Petio · Update available':'Petio · Your little companion');};
+  updates.subscribe(status=>{trayTip(status);if(settings&&!settings.isDestroyed())settings.webContents.send('pet-update',status);if(alive())emit();});
   ipcMain.handle('pet-update-status',e=>trusted(e)?updates.snapshot():null);
   ipcMain.handle('pet-update-check',e=>trusted(e)?updates.check(true):null);
   ipcMain.handle('pet-update-install',e=>{if(!trusted(e))return null;updates.install();return updates.snapshot();});
   ipcMain.handle('pet-update-download',e=>trusted(e)?updates.download():null);
-  if(app.isPackaged)setTimeout(()=>updates.check(),8000);
+  if(app.isPackaged){setTimeout(()=>updates.check(),8000);setInterval(()=>{const u=updates.snapshot();if(!['checking','downloading','ready'].includes(u.status))updates.check();},30*60*1000);}
   ipcMain.handle('pet-read',e=>trusted(e)?snapshot():null);
   social=require('./social.cjs').startSocial({directory:app.getPath('userData'),readPet:()=>state,
    readHost:()=>{const p=nativeAnchor();return {type:state.type,x:p.x,y:p.y,scale:state.scale,busy:!!(options||composing||drag||playing||travel)||['sleep','dead','beg','carried','gameThink'].includes(action)||!alive()||!win.isVisible()};},
