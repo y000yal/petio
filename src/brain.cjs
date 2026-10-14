@@ -27,6 +27,7 @@ function sanitize(raw = {}) {
     volume: Number.isFinite(raw.volume) ? (raw.volume === .18 ? .07 : clamp(raw.volume,0,.5)) : .07, // .18 was the old default; move it to the new quieter one
     crossScreens: raw.crossScreens === true,
     autoUpdate: raw.autoUpdate === true,
+    chatTheme: ['system','light','dark'].includes(raw.chatTheme) ? raw.chatTheme : 'system',
     reminders: Array.isArray(raw.reminders) ? raw.reminders.filter(r => r && typeof r.id === 'string' && typeof r.text === 'string' && r.text.length <= 140 && Number.isFinite(r.due)).slice(0, 50).map(r=>({...r, window:normalizeWindow(r.window), ...(Number.isFinite(r.intervalMs)&&r.intervalMs>=60000&&r.intervalMs<=604800000?{intervalMs:r.intervalMs}:{intervalMs:0})})) : []
   };
 }

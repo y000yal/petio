@@ -1,0 +1,209 @@
+#deliver[data-mode="dark"]{background:#2b2b30;color:#f4f4f6;border-color:#4a4a52}
+#deliver[data-mode="dark"] #deliver-expand,
+#deliver[data-mode="dark"] #deliver-close{background:#3a3a40;color:#f4f4f6;border-color:#4a4a52}
+#deliver[data-mode="dark"] #deliver-expand:hover,
+#deliver[data-mode="dark"] #deliver-close:hover{background:#4a4a52}
+#deliver[data-mode="dark"] #deliver-threads{border-color:#4a4a52}
+#deliver[data-mode="dark"] #deliver-threads .thread{color:#f4f4f6}
+#deliver[data-mode="dark"] #deliver-threads .thread.on,
+#deliver[data-mode="dark"] #deliver-threads .thread:hover{background:#3a3a40}
+#deliver[data-mode="dark"] #deliver-threads .thread small,
+#deliver[data-mode="dark"] #deliver-log .empty,
+#deliver[data-mode="dark"] #deliver-typing,
+#deliver[data-mode="dark"] #deliver-log .receipt,
+#deliver[data-mode="dark"] #deliver-status{color:#b9b9c0}
+#deliver[data-mode="dark"] .composer,
+#deliver[data-mode="dark"] #deliver-host{background:#1c1c1f;border-color:#4a4a52;color:#f4f4f6}
+#deliver[data-mode="dark"] .composer textarea,
+#deliver[data-mode="dark"] .composer textarea::placeholder{color:#f4f4f6}
+#deliver[data-mode="dark"] #deliver-log .bubble p.theirs{background:#3a3a40;color:#f4f4f6;border-color:#4a4a52}
+#deliver[data-mode="dark"] #deliver-log .bubble p.mine{background:#b59afb;color:#131926}
+#deliver[data-mode="dark"] #deliver-log .pin-mark{color:#a3a3ae}
+#deliver[data-mode="dark"] #deliver-log .pins{background:#1a1a20}
+html[data-mode="light"] #desk-log .pins{background:#f7f1e6}
+#deliver[data-mode="dark"] #deliver-log .msg-tools button{background:#3a3a40;color:#f4f4f6}
+#deliver[data-mode="dark"] #deliver-log .msg-tools button:hover,
+#deliver[data-mode="dark"] #deliver-log .reacts button{background:#4a4a52;color:#f4f4f6}
+#deliver[data-mode="dark"] #deliver-log .reacts button.on,
+#deliver[data-mode="dark"] #deliver-log .pins button{background:#b59afb;color:#131926}
+#deliver[data-mode="dark"] .reply-bar,
+#deliver[data-mode="dark"] .reply-bar i,
+#deliver[data-mode="dark"] #deliver-log .bubble.theirs .quote b,
+#deliver[data-mode="dark"] #deliver-log .bubble.theirs .quote i{color:#e4e4ea}
+#deliver[data-mode="dark"] #deliver-log .bubble.theirs .quote{border-left-color:#b59afb;background:#ffffff14}
+#deliver[data-mode="dark"] #deliver-log .bubble.mine .quote{border-left-color:#5c4d86;background:#00000018}
+#deliver[data-mode="dark"] #deliver-log .bubble.mine .quote b,
+#deliver[data-mode="dark"] #deliver-log .bubble.mine .quote i{color:#2a2148}
+#deliver[data-mode="dark"] .composer:focus-within{border-color:#b59afb}
+#deliver[data-mode="dark"] .deliver-tools button[type=submit],
+#deliver[data-mode="dark"] .deliver-tools button.on{background:#b59afb;border-color:transparent;color:#131926}
+#deliver[data-mode="dark"] #deliver-gif-results button.on{box-shadow:inset 0 0 0 3px #b59afb}
+#deliver[data-mode="dark"] #deliver-emoji-tray [frimousse-emoji][data-active]{background:#b59afb;color:#131926}
+#deliver[data-mode="dark"] #deliver-log{scrollbar-color:#6a6a72 transparent}
+#deliver[data-mode="light"] .picker-modal{background:#fffaf3;color:#2c241c;border:1px solid #e0d3bc}
+#deliver[data-mode="light"] .picker-close,
+#deliver[data-mode="light"] #deliver-gif-search,
+#deliver[data-mode="light"] #deliver-emoji-tray [frimousse-search]{background-color:#efe4d2;color:#2c241c}
+#deliver[data-mode="light"] #deliver-gif-search::placeholder,
+#deliver[data-mode="light"] #deliver-emoji-tray [frimousse-search]::placeholder,
+#deliver[data-mode="light"] #deliver-gif-credit,
+#deliver[data-mode="light"] #deliver-emoji-tray [frimousse-category-header]{color:#8a7b68}
+#deliver[data-mode="light"] #deliver-emoji-tray [frimousse-category-header]{background:#fffaf3}
+#deliver[data-mode="light"] .emoji-cats button{color:#8a7b68}
+#deliver[data-mode="light"] .emoji-cats button.on,
+#deliver[data-mode="light"] .emoji-cats button:hover{background:#efe4d2;color:#2c241c}
+#deliver[data-mode="light"] #deliver-gif-results button{background:#efe4d2}
+#deliver[data-mode="light"] #deliver-gif-results,
+#deliver[data-mode="light"] #deliver-emoji-tray [frimousse-viewport]{scrollbar-color:#c4b49a transparent}
+
+#desk-chat[data-mode="light"]{background:#f7f1e6;color:#2c241c;border-radius:16px;padding:16px}
+#desk-chat[data-mode="light"] .composer{background:#fffaf3;border-color:#e0d3bc}
+#desk-chat[data-mode="light"] .composer textarea,
+#desk-chat[data-mode="light"] .composer textarea::placeholder{color:#2c241c}
+#desk-chat[data-mode="light"] #desk-threads{border-color:#e0d3bc}
+#desk-chat[data-mode="light"] #desk-threads .thread{color:#2c241c}
+#desk-chat[data-mode="light"] #desk-threads .thread.on,
+#desk-chat[data-mode="light"] #desk-threads .thread:hover{background:#efe4d2}
+#desk-chat[data-mode="light"] #desk-threads .thread small,
+#desk-chat[data-mode="light"] #desk-log .empty{color:#8a7b68}
+#desk-chat[data-mode="light"] #desk-log .bubble p.theirs{background:#fffaf3;color:#2c241c;border:1px solid #e0d3bc}
+#desk-chat[data-mode="light"] #desk-log .bubble.theirs .quote{background:#0000000d;border-left-color:#c4893f}
+#desk-chat[data-mode="light"] #desk-log .bubble.theirs .quote b,
+#desk-chat[data-mode="light"] #desk-log .bubble.theirs .quote i{color:#5c4d3c}
+#desk-chat[data-mode="light"] #desk-log .msg-tools button{background:#efe4d2;color:#2c241c}
+#desk-chat[data-mode="light"] #desk-log{scrollbar-color:#c4b49a transparent}
+
+html[data-mode="light"]{color-scheme:light;color:#2c241c;background:#f7f1e6;--surface:#fffaf3;--border:#e0d3bc;--muted:#8a7b68;--accent:#e0a15a}
+html[data-mode="light"] body{background:#f7f1e6;color:#2c241c}
+html[data-mode="light"] aside{background:#fffaf3}
+html[data-mode="light"] nav button,
+html[data-mode="light"] nav button:hover{background:transparent;border-color:transparent;color:#8a7b68}
+html[data-mode="light"] nav button:hover,
+html[data-mode="light"] nav button.open{color:#2c241c}
+html[data-mode="light"] .aside-bottom,
+html[data-mode="light"] .section-title,
+html[data-mode="light"] .stat,
+html[data-mode="light"] .facts dd{color:#2c241c}
+html[data-mode="light"] .aside-bottom p,
+html[data-mode="light"] .aside-bottom small,
+html[data-mode="light"] header,
+html[data-mode="light"] .hint,
+html[data-mode="light"] .facts dt,
+html[data-mode="light"] .preview .eyebrow,
+html[data-mode="light"] .controls>.update-row>#update-status{color:#8a7b68}
+html[data-mode="light"] button{color:#2c241c;background:#fff;border-color:#e0d3bc}
+html[data-mode="light"] button:hover{background:#efe4d2;border-color:#c4b49a}
+html[data-mode="light"] .primary,
+html[data-mode="light"] .use-pet,
+html[data-mode="light"] .primary:hover,
+html[data-mode="light"] .use-pet:hover,
+html[data-mode="light"] #desk-chat .desk-tools button[type=submit],
+html[data-mode="light"] #desk-chat .desk-tools button[type=submit]:hover,
+html[data-mode="light"] #desk-chat .desk-tools button.on{background:var(--accent);border-color:transparent;color:#2a1c10}
+html[data-mode="light"] input,
+html[data-mode="light"] select,
+html[data-mode="light"] textarea{color:#2c241c;background:#fff;border-color:#e0d3bc}
+html[data-mode="light"] input[type=checkbox]{background:#e7dccb;border-color:#c4b49a}
+html[data-mode="light"] input[type=checkbox]:checked{background:var(--accent);border-color:var(--accent)}
+html[data-mode="light"] input[type=checkbox]::before{background:#fff}
+html[data-mode="light"] .character.selected{background:#f6e6cf}
+html[data-mode="light"] .character.selected:after{color:#8a5a28}
+html[data-mode="light"] .character.previewing,
+html[data-mode="light"] .preview,
+html[data-mode="light"] .info::after{background:#fffaf3;border-color:#e0d3bc;color:#2c241c}
+html[data-mode="light"] .role{color:#5c4d3c;background:#f6e6cf;border-color:#e0d3bc}
+html[data-mode="light"] .preview #pet-detail,
+html[data-mode="light"] .info{color:#5c4d3c}
+html[data-mode="light"] .stat i{background:#e7dccb}
+html[data-mode="light"] .facts{border-top-color:#e0d3bc}
+html[data-mode="light"] .empty{border-color:#e0d3bc}
+html[data-mode="light"] #social-members .friend,
+html[data-mode="light"] #desk-chat .composer,
+html[data-mode="light"] #social-room,
+html[data-mode="light"] .reminder{background:#fffaf3}
+
+html[data-shell]:not([data-mode="light"]){color-scheme:dark;color:#f4f4f6;background:#121216;--surface:#1a1a20;--border:#2c2c34;--muted:#a3a3ae;--accent:#b59afb}
+html[data-shell]:not([data-mode="light"]) body{background:#121216;color:#f4f4f6}
+html[data-shell]:not([data-mode="light"]) aside{background:#0e0e12}
+html[data-shell]:not([data-mode="light"]) button{background:#22222a;border-color:#34343e;color:#f4f4f6}
+html[data-shell]:not([data-mode="light"]) button:hover{background:#2c2c36;border-color:#4a4a56}
+html[data-shell]:not([data-mode="light"]) nav button,
+html[data-shell]:not([data-mode="light"]) nav button:hover{background:transparent;border-color:transparent}
+html[data-shell]:not([data-mode="light"]) nav button:hover,
+html[data-shell]:not([data-mode="light"]) nav button.open{color:#f4f4f6}
+html[data-shell]:not([data-mode="light"]) nav button.active{color:#b59afb}
+html[data-shell]:not([data-mode="light"]) input:not([type=checkbox]):not([type=range]),
+html[data-shell]:not([data-mode="light"]) select,
+html[data-shell]:not([data-mode="light"]) textarea{background:#16161c;color:#f4f4f6;border-color:#34343e}
+html[data-shell]:not([data-mode="light"]) input[type=checkbox]{background:#3a3a44;border-color:#5a5a66}
+html[data-shell]:not([data-mode="light"]) input[type=checkbox]::before{background:#f4f4f6}
+html[data-shell]:not([data-mode="light"]) input[type=checkbox]:checked{background:#b59afb;border-color:#b59afb}
+html[data-shell]:not([data-mode="light"]) input[type=checkbox]:checked::before{background:#131926}
+html[data-shell]:not([data-mode="light"]) .card,
+html[data-shell]:not([data-mode="light"]) .character,
+html[data-shell]:not([data-mode="light"]) .preview,
+html[data-shell]:not([data-mode="light"]) .info::after,
+html[data-shell]:not([data-mode="light"]) #social-members .friend,
+html[data-shell]:not([data-mode="light"]) .reminder{background:#1a1a20;border-color:#2c2c34;color:#f4f4f6}
+html[data-shell]:not([data-mode="light"]) .character.selected{background:#2a2438;border-color:#b59afb}
+html[data-shell]:not([data-mode="light"]) .primary,
+html[data-shell]:not([data-mode="light"]) .use-pet,
+html[data-shell]:not([data-mode="light"]) #desk-log .bubble p.mine,
+html[data-shell]:not([data-mode="light"]) #desk-chat .desk-tools button.on,
+html[data-shell]:not([data-mode="light"]) #desk-chat .desk-tools button[type=submit],
+html[data-shell]:not([data-mode="light"]) #social-choice button.active,
+html[data-shell]:not([data-mode="light"]) #desk-log .reacts button.on{background:#b59afb;border-color:transparent;color:#131926}
+html[data-shell]:not([data-mode="light"]) .primary:hover,
+html[data-shell]:not([data-mode="light"]) .use-pet:hover,
+html[data-shell]:not([data-mode="light"]) #desk-chat .desk-tools button[type=submit]:hover{background:#cbb8ff;border-color:transparent;color:#131926}
+html[data-shell]:not([data-mode="light"]) output,
+html[data-shell]:not([data-mode="light"]) #social-notice{color:#b59afb}
+html[data-shell]:not([data-mode="light"]) #desk-emoji-tray [frimousse-emoji][data-active]{background:#b59afb;color:#131926}
+html[data-shell]:not([data-mode="light"]) #desk-log .mine .quote{border-left-color:#5c4d86;background:#00000022}
+html[data-shell]:not([data-mode="light"]) #desk-log .mine .quote b,
+html[data-shell]:not([data-mode="light"]) #desk-log .mine .quote i{color:#2a2148}
+html[data-shell]:not([data-mode="light"]) #desk-chat .composer:focus-within{border-color:#b59afb}
+#deliver[data-mode="dark"]{background:#1a1a20;border-color:#2c2c34}
+#deliver[data-mode="dark"] header,
+#deliver[data-mode="dark"] .talk-head{border-bottom-color:#2c2c34}
+#deliver[data-mode="dark"] .chat-side{background:transparent;border:0}
+#deliver[data-mode="dark"] .talk-head small,
+#deliver[data-mode="dark"] #deliver-threads .thread small{color:#a3a3ae}
+#deliver[data-mode="dark"] #deliver-threads .thread:hover,
+#deliver[data-mode="dark"] #deliver-threads .thread.on{background:#2a2a32;box-shadow:none}
+#deliver[data-mode="dark"] #deliver-threads .presence{background:transparent;border-color:#6a6a72}
+#deliver[data-mode="dark"] #deliver-threads .presence.live{background:#3caf6a;border-color:#3caf6a}
+#deliver[data-mode="dark"] #deliver-threads .presence.live::after{content:none}
+#desk-chat[data-mode="light"] .chat-side{background:transparent}
+#desk-chat[data-mode="light"] #desk-threads .thread:hover{background:#f3eadc}
+#desk-chat[data-mode="light"] #desk-threads .thread.on{background:#efe4d2;box-shadow:none}
+#desk-chat[data-mode="light"] #desk-threads .presence{background:transparent;border-color:#b7a48c}
+#desk-chat[data-mode="light"] #desk-threads .presence.live{background:#3caf6a;border-color:#3caf6a}
+#desk-chat[data-mode="light"] #desk-threads .presence.live::after{content:none}
+#desk-chat[data-mode="light"] .talk-head{border-bottom-color:#e0d3bc}
+html:not([data-shell]),html:not([data-shell]) body{background:transparent}
+@keyframes settings-from-pet{from{opacity:0;transform:scale(.97) translateY(10px)}to{opacity:1;transform:none}}
+@keyframes settings-to-pet{from{opacity:1;transform:none}to{opacity:0;transform:scale(.98) translateY(8px)}}
+html[data-shell]{height:auto;overflow:visible;transform-origin:var(--from-x,50%) var(--from-y,100%)}
+html[data-shell].settings-open{animation:settings-from-pet .26s cubic-bezier(.22,1,.36,1) backwards}
+html[data-shell].settings-out{animation:settings-to-pet .18s cubic-bezier(.4,0,.7,1) both;pointer-events:none}
+html[data-shell] .window-bar{position:fixed;z-index:80;top:0;left:0;right:0;height:40px;display:flex;align-items:center;justify-content:flex-end;gap:2px;padding:0 8px;-webkit-app-region:drag}
+html[data-shell] .window-bar button{-webkit-app-region:no-drag;width:36px;height:28px;margin:0;padding:0;border:0;border-radius:8px;background:transparent;color:inherit;font:14px/1 'Segoe UI',sans-serif}
+html[data-shell] .window-bar button:hover{background:#ffffff18;border-color:transparent}
+html[data-shell] aside{top:40px}
+html[data-shell] main{padding-top:48px}
+@media(prefers-reduced-motion:reduce){html[data-shell].settings-open,html[data-shell].settings-out{animation:none}}
+#deliver[data-mode="dark"]{box-shadow:0 18px 44px #00000066,0 2px 8px #00000030}
+#deliver[data-mode="dark"] header{color:#a3a3ae;border-bottom:0}
+#deliver[data-mode="dark"] #deliver-expand,
+#deliver[data-mode="dark"] #deliver-close{background:transparent;border:0}
+#deliver[data-mode="dark"] #deliver-expand:hover,
+#deliver[data-mode="dark"] #deliver-close:hover{background:#2a2a32}
+#deliver[data-mode="dark"] .deliver-tools button:hover{background:#2a2a32}
+#deliver[data-mode="dark"] .deliver-tools button[type=submit]:hover{background:#cbb8ff;color:#131926}
+#deliver[data-mode="dark"] #deliver-threads{border-right:0}
+#deliver[data-mode="dark"] #deliver-threads .empty{color:#a3a3ae}
+#deliver[data-mode="dark"] #deliver-gif{color:#f4f4f6}
+#deliver[data-mode="dark"] #deliver-gif.on{color:#131926}
+html[data-shell]:not([data-mode="light"]) #desk-gif{color:#f4f4f6}
+html[data-shell]:not([data-mode="light"]) #desk-gif.on{color:#131926}

@@ -3,7 +3,7 @@ const soundProfiles={
  miso:[{t:0,d:.34,f:[620,980,760],w:'triangle',g:1,vib:7},{t:.4,d:.16,f:[700,620],w:'triangle',g:.7}], // soft meow
  ember:[{t:0,d:.09,f:[330,250],w:'square',g:.7},{t:.14,d:.09,f:[330,250],w:'square',g:.7},{t:.28,d:.09,f:[330,250],w:'square',g:.7},{t:.42,d:.22,f:[300,190],w:'sawtooth',g:.6}], // cheeky snicker
  bumble:[{t:0,d:.4,f:[210,235,210],w:'sawtooth',g:.55,trem:34},{t:.45,d:.2,f:[260,300],w:'sawtooth',g:.5,trem:34}], // buzz
- boo:[{t:0,d:.7,f:[300,540,300],w:'sine',g:1,vib:5}], // ghostly oooOOoo
+ boo:[{t:0,d:.16,f:[780,1040,860],w:'sine',g:.7,vib:6},{t:.14,d:.18,f:[1100,820],w:'sine',g:.5,vib:7}], // tiny soft boo-oo
  drowsy:[{t:0,d:.65,f:[420,330,180],w:'triangle',g:.9,vib:3},{t:.7,d:.3,f:[160,120],w:'sine',g:.6}], // sleepy yawn-sigh
  luffy:[{t:0,d:.11,f:[560,330],w:'square',g:.55},{t:.17,d:.13,f:[600,340],w:'square',g:.55}], // two quick woofs
  merlin:[{t:0,d:.5,f:[784],w:'sine',g:.8,bell:1},{t:.09,d:.5,f:[988],w:'sine',g:.8,bell:1},{t:.18,d:.5,f:[1175],w:'sine',g:.8,bell:1},{t:.27,d:.7,f:[1568],w:'sine',g:.8,bell:1}] // magic chime

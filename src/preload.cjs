@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('pet', {
   socialCommand: data => ipcRenderer.invoke('social-command',data),
   socialSubscribe: callback => ipcRenderer.on('social-state',(_event,state)=>callback(state)),
   composer: open => ipcRenderer.send('pet-composer',!!open),
+  closeComposer: () => ipcRenderer.send('pet-close-composer'),
+  onCloseComposer: callback => ipcRenderer.on('pet-close-composer', () => callback()),
   composerBox: box => ipcRenderer.send('pet-composer-box', box&&typeof box==='object'?{x:Number(box.x),y:Number(box.y),w:Number(box.w),h:Number(box.h)}:null),
   onNoteClose: callback => ipcRenderer.on('pet-note-close',()=>callback()),
   read: () => ipcRenderer.invoke('pet-read'),
@@ -24,6 +26,10 @@ contextBridge.exposeInMainWorld('pet', {
   onUpdate: callback => ipcRenderer.on('pet-update', (_event, status) => callback(status)),
   reminder: data => ipcRenderer.invoke('pet-reminder', data),
   onTab: callback => ipcRenderer.on('settings-tab', (_event, tab) => callback(tab)),
+  openChat: host => ipcRenderer.send('pet-open-chat', typeof host==='string'?host:''),
+  onOpenChat: callback => ipcRenderer.on('settings-open-chat', (_event, host) => callback(host)),
+  closeSettings: () => ipcRenderer.send('settings-close'),
+  minimizeSettings: () => ipcRenderer.send('settings-minimize'),
   subscribe: callback => ipcRenderer.on('pet-state', (_event, state) => callback(state))
 });
 

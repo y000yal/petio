@@ -77,6 +77,7 @@ test('dialogue has four unique variations per character and activity without imm
 });
 test('sound preferences validate bounds and character dance poses differ',()=>{
  assert.equal(sanitize({volume:5}).volume,.5);assert.equal(sanitize({volume:-1}).volume,0);assert.equal(sanitize({sounds:false}).sounds,false);
+ assert.equal(sanitize({}).chatTheme,'system');assert.equal(sanitize({chatTheme:'dark'}).chatTheme,'dark');assert.equal(sanitize({chatTheme:'nope'}).chatTheme,'system');
  const {actionPose}=require('../src/poses.js');const poses=types.map(type=>JSON.stringify(actionPose('dance',.5,.7,type)));assert.equal(new Set(poses).size,types.length);
 });
 

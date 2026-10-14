@@ -66,11 +66,18 @@
   }catch{item.failed=true;item.reason='';paint(state);}
  }
  const threads=document.querySelector('#desk-threads'),jump=document.querySelector('#desk-jump');
- let stick=false,below=0,knownIds=null;
+ let stick=false,below=0,knownIds=null,preferHost='';
  function unreadHosts(s){
   const map=new Map();if(!s?.me)return map;
   for(const m of s.chat||[]){if(m.from===s.me.id||(m.seen||[]).includes(s.me.id))continue;const host=m.to==='group'?'group':m.from;map.set(host,(map.get(host)||0)+1);}
   return map;
+ }
+ function showTalk(item){
+  const head=document.querySelector('#desk-talk');if(!head)return;
+  if(!item){head.hidden=true;return;}
+  head.hidden=false;
+  head.querySelector('strong').textContent=item.name;
+  head.querySelector('small').textContent=item.id==='group'?'Everyone in the group':!item.accept?'Visits off':item.online?'Online':'Offline';
  }
  function paintThreads(s){
   const me=s.me.id,unread=unreadHosts(s),scrollTop=threads.scrollTop;
@@ -80,18 +87,18 @@
    const rows=thread(item.id,me,s.chat),last=rows[rows.length-1],count=unread.get(item.id)||0;
    const b=document.createElement('button');b.type='button';b.className='thread'+(select.value===item.id?' on':'')+(count?' unread':'');b.setAttribute('role','option');b.setAttribute('aria-selected',String(select.value===item.id));
    if(item.id!=='group'&&!item.accept)b.disabled=true;
-   const dot=document.createElement('i');dot.className='presence'+(item.id==='group'?' group':item.online?' live':'');
-   const text=document.createElement('span');const name=document.createElement('strong');name.textContent=item.name+(item.id!=='group'&&!item.accept?' · visits off':'');const preview=document.createElement('small');preview.textContent=last?(notePlain(last.text).slice(0,48)||'GIF'):'No messages yet';text.append(name,preview);b.append(dot,text);
+   const dot=document.createElement('i');dot.className='presence'+(item.id==='group'?' group':item.online?' live':'');   const text=document.createElement('span');const name=document.createElement('strong');name.textContent=item.name+(item.id!=='group'&&!item.accept?' · visits off':'');const preview=document.createElement('small');preview.textContent=last?(notePlain(last.text).slice(0,48)||'GIF'):'No messages yet';text.append(name,preview);b.append(dot,text);
    if(count){const em=document.createElement('em');em.textContent=count>9?'9+':String(count);b.append(em);}
    b.onclick=()=>{if(b.disabled||select.value===item.id)return;select.value=item.id;stick=true;below=0;paint(state);};
    threads.append(b);
   }
   threads.scrollTop=scrollTop;
+  showTalk(items.find(item=>item.id===select.value)||items[0]);
  }
  function paint(s){
   state=s||null;
   const looking=!document.querySelector('[data-panel="friends-chat"]').hidden;
-  if(!s?.connected||!s.room||!s.me){panel.hidden=false;form.hidden=true;threads.hidden=true;typingLine.hidden=true;jump.hidden=true;log.replaceChildren();const empty=document.createElement('p');empty.className='empty';empty.textContent=!s?.connected?'Connect in Settings to chat.':!s?.me?'Create a profile in Settings to chat.':'Join a group in Settings to start chatting.';log.append(empty);return;}
+  if(!s?.connected||!s.room||!s.me){panel.hidden=false;form.hidden=true;threads.hidden=true;showTalk(null);typingLine.hidden=true;jump.hidden=true;log.replaceChildren();const empty=document.createElement('p');empty.className='empty';empty.textContent=!s?.connected?'Connect in Settings to chat.':!s?.me?'Create a profile in Settings to chat.':'Join a group in Settings to start chatting.';log.append(empty);return;}
   panel.hidden=false;form.hidden=false;threads.hidden=false;
   const members=s.members||[],previous=select.value||'group',signature=members.map(m=>m.id+m.name+m.online+m.accept).join('|');
   if(select.dataset.members!==signature){
@@ -102,7 +109,9 @@
    const keep=[...select.options].find(o=>o.value===previous&&!o.disabled);
    select.value=keep?keep.value:'group';
   }
+  if(preferHost){const pick=[...select.options].find(o=>o.value===preferHost&&!o.disabled);if(pick){select.value=pick.value;stick=true;}preferHost='';}
   const host=select.value||'group',rows=thread(host,s.me.id,s.chat),me=s.me.id,used=new Set();
+  log.classList.toggle('direct',host!=='group');
   const incoming=rows.filter(m=>m.from!==me),latest=incoming[incoming.length-1];
   if(looking&&latest&&!(latest.seen||[]).includes(me)){const mark=host+':'+latest.id;if(mark!==seenKey){seenKey=mark;window.pet.socialCommand({command:'seen',host}).catch(()=>{});}}
   if(looking)for(const m of rows){if(m.from!==me&&!(m.seen||[]).includes(me))m.seen=[...(m.seen||[]),me];}
@@ -134,7 +143,9 @@
  document.querySelector('#desk-gif-search').addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(loadGifs,280);});
  document.querySelector('#desk-gif-search').addEventListener('keydown',e=>{if(e.key==='Enter')e.preventDefault();});
  let typingTimer=0,typingOn=false;
+ function fitField(field){field.style.height='0px';field.style.height=Math.min(field.scrollHeight,120)+'px';}
  function queueTyping(){
+  fitField(form.elements.message);
   clearTimeout(typingTimer);
   typingTimer=setTimeout(()=>{
    const active=form.elements.message.value.trim().length>=3;
@@ -160,10 +171,11 @@
   if(!message)return;
   const reply=replyTarget?{id:replyTarget.id,name:replyTarget.name,text:replyTarget.text}:null;
   const item={id:Date.now()+':'+Math.random(),host,text:message,failed:false,ping:chosen?sent:'',reason:'',reply};
-  form.elements.message.value='';setReply(null);chosen='';sent='';stopTyping();status.textContent='';showGif();markTools();outgoing.push(item);deliver(item);
+  form.elements.message.value='';fitField(form.elements.message);setReply(null);chosen='';sent='';stopTyping();status.textContent='';showGif();markTools();outgoing.push(item);deliver(item);
  });
  jump.onclick=()=>{log.scrollTop=log.scrollHeight;jump.hidden=true;below=0;};
  log.addEventListener('scroll',()=>{if(log.scrollHeight-log.scrollTop-log.clientHeight<48){jump.hidden=true;below=0;}});
  window.pet.socialSubscribe(paint);
  window.pet.socialRead().then(paint).catch(()=>paint(null));
+ window.PetioDesk={open(host){if(typeof host!=='string'||!host)return;preferHost=host;stick=true;below=0;if(state)paint(state);}};
 })();

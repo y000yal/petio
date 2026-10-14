@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, Menu, Tray, nativeImage, screen, Notification, powerMonitor } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, Tray, nativeImage, nativeTheme, screen, Notification, powerMonitor } = require('electron');
 const { characterLine, soundCaption } = require('./characters.js');
 // Light on memory: software rendering is plenty for one small canvas and avoids a heavy GPU process; audio stays in-process.
 app.disableHardwareAcceleration();app.commandLine.appendSwitch('disable-features','AudioServiceOutOfProcess');
@@ -35,16 +35,22 @@ function setHeading(c){if(c==='left'||c==='right'){vertical=false;direction=c===
 function cancelTravel(){if(travel&&alive())win.webContents.send('pet-clip',null);travel=null;for(const portal of portalWindows)if(!portal.isDestroyed())portal.destroy();portalWindows=[];}
 let userCue=0; // set when you click something; Boo only makes noise for those, and only some of the time
 function sound(action,preview=false,force=false,hasMessage=false){if(state.type==='boo'&&!force&&action!=='reminder'&&action!=='water'&&(Date.now()-userCue>500||Math.random()<.5))return;if(alive()&&state.sounds&&state.volume>0)win.webContents.send('pet-sound',{type:state.type,action,sounds:state.sounds,volume:state.volume,preview}); if(!hasMessage&&state.prompts&&alive()&&state.sounds&&state.volume>0&&!['reminder','water','menu'].includes(action))emit(soundCaption(state.type));}
-const restSize = { width: 520, height: 440 }, chatSize = { width: 880, height: 640 };
+const restSize = { width: 520, height: 440 }, chatSize = { width: 680, height: 500 };
 const size = { width: restSize.width, height: restSize.height };
 const preferences = { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, autoplayPolicy:'no-user-gesture-required' };
 function phrase(event='curious') { return characterLine(state.type,event); }
 function save() { try { fs.writeFileSync(savePath + '.tmp', JSON.stringify(state)); fs.renameSync(savePath + '.tmp', savePath); } catch (e) { console.error('Could not save memory:', e.message); } }
-function snapshot(message) { return { ...state, action, started, until, direction, paused, options, playing, message, petX:petOffset.x,petY:petOffset.y,travelContinuous:!!travel?.continuous,travelSplit:travel?.split||.5,climb:action==='walk'?climb:0,need:needLevel,excite:exciteLevel,screens:screen.getAllDisplays().length,quick:quickUntil>Date.now(),menuSide,meet:Date.now()<meetUntil,hidden: !alive() || !win.isVisible(), packaged: app.isPackaged, login: app.getLoginItemSettings().openAtLogin }; }
+function appearance(){return state&&(state.chatTheme==='light'||state.chatTheme==='dark')?state.chatTheme:(nativeTheme.shouldUseDarkColors?'dark':'light');}
+function snapshot(message) { return { ...state, chatMode:appearance(), action, started, until, direction, paused, options, playing, message, petX:petOffset.x,petY:petOffset.y,travelContinuous:!!travel?.continuous,travelSplit:travel?.split||.5,climb:action==='walk'?climb:0,need:needLevel,excite:exciteLevel,screens:screen.getAllDisplays().length,quick:quickUntil>Date.now(),menuSide,meet:Date.now()<meetUntil,hidden: !alive() || !win.isVisible(), packaged: app.isPackaged, login: app.getLoginItemSettings().openAtLogin }; }
 function ignoreMouse(ignore) { if(alive() && ignoringMouse!==ignore){win.setIgnoreMouseEvents(ignore,{forward:true});ignoringMouse=ignore;} }
-function emit(message) { if(message)speechUntil=Date.now()+(action==='attention'?14000:5500);for (const w of [win, settings]) if (w && !w.isDestroyed()) w.webContents.send('pet-state', snapshot(message)); }
+function emit(message) { if(message)speechUntil=Date.now()+(action==='attention'?14000:5500);if(settings&&!settings.isDestroyed())settings.setBackgroundColor(appearance()==='light'?'#f7f1e6':'#121216');for (const w of [win, settings]) if (w && !w.isDestroyed()) w.webContents.send('pet-state', snapshot(message)); }
 function act(next, duration = 5000, message, quiet=false) { pendingTurn=null;action = next; started = Date.now(); until = started + duration; emit(message);if(!quiet&&['happy','pet','jump','flip','dance','attention','trident','pounce','hover','vanish','spell','yawn','portalOut','sleep'].includes(next)&&alive()&&win.isVisible())sound(next,false,false,!!message); }
 function alive() { return win && !win.isDestroyed(); }
+function liftPet(){
+ if(!alive()||!state)return;
+ if(state.alwaysOnTop){win.setAlwaysOnTop(true,'screen-saver');win.moveTop();}
+ else win.setAlwaysOnTop(false);
+}
 function nativeAnchor() { const b = alive() ? win.getBounds() : { x: 0, y: 0 }; return { x: b.x + petOffset.x, y: b.y + petOffset.y }; }
 function anchor() { return desiredPosition || nativeAnchor(); }
 function syncDisplay(){logicalDisplayId=screen.getDisplayNearestPoint(nativePoint(anchor())).id;ignoringMouse=undefined;}
@@ -71,7 +77,7 @@ function shift(change){
 function pushView(){
  if(!alive())return;
  const b=win.getBounds(),d=screen.getDisplayMatching(b).workArea,v={l:Math.max(0,d.x-b.x),r:Math.min(size.width,d.x+d.width-b.x),t:Math.max(0,d.y-b.y),b:Math.min(size.height,d.y+d.height-b.y),w:size.width,h:size.height},key=JSON.stringify(v);
- if(key===lastView)return;lastView=key;viewBox=v;win.webContents.send('pet-view',v);
+ if(key===lastView)return;lastView=key;viewBox=v;win.webContents.send('pet-view',{...v,petX:petOffset.x,petY:petOffset.y});
 }
 function placeComposer(open){
  if(!alive())return;
@@ -85,9 +91,9 @@ function placeComposer(open){
   const desired={x:side==='right'?160:size.width-160,y:Math.round(size.height*.62)};
   const safe=keepOnScreen({x:world.x-desired.x,y:world.y-desired.y,width:size.width,height:size.height},area,size);
   const next={x:world.x-safe.x,y:world.y-safe.y};
-  petOffset=next;move(world);emit();pushView();
+  petOffset=next;move(world);pushView();emit();
  }else if(!options){
-  chatBox=null;size.width=restSize.width;size.height=restSize.height;const at=nativeAnchor();petOffset={x:260,y:250};move(at);emit();pushView();
+  chatBox=null;size.width=restSize.width;size.height=restSize.height;const at=nativeAnchor();petOffset={x:260,y:250};move(at);pushView();emit();
  }
 }
 function setOptions(open, immediate=false) {
@@ -233,15 +239,41 @@ function scratchUpdate(c,hit,s,now,dt){
 function secure(w) { w.webContents.setWindowOpenHandler(() => ({ action: 'deny' })); w.webContents.on('will-navigate', e => e.preventDefault()); }
 function closeGames(){if(!playing)return;playing=false;lastAttention=Date.now();setOptions(false);if(alive())act('idle',1500,undefined,true);}
 function openGames(){if(social?.isAway())return;cancelTravel();drag=null;needLevel=0;attentionHome=null;playing=true;setOptions(true);const world=nativeAnchor(),area=screen.getDisplayNearestPoint(nativePoint(world)).workArea,safe=keepOnScreen({x:world.x-260,y:world.y-355},area,size);petOffset={x:world.x-safe.x,y:world.y-safe.y};move(world);act('gameThink',30000,undefined,true);}
+function settingsTarget(){
+ const pet=nativePoint(nativeAnchor())||nativeAnchor(),area=screen.getDisplayNearestPoint(pet).workArea;
+ return {x:area.x,y:area.y,width:area.width,height:area.height};
+}
+function settingsOrigin(){
+ const pet=nativeAnchor(),box=settings.getContentBounds();
+ return {x:Math.round(pet.x-box.x),y:Math.round(pet.y-box.y)};
+}
+function playSettingsMotion(opening){
+ const origin=settingsOrigin();
+ const clas=opening?'settings-open':'settings-out';
+ const other=opening?'settings-out':'settings-open';
+ return settings.webContents.executeJavaScript(`const root=document.documentElement;root.style.setProperty('--from-x','${origin.x}px');root.style.setProperty('--from-y','${origin.y}px');root.style.transform='';root.style.opacity='';root.classList.remove('${other}');void root.offsetWidth;root.classList.add('${clas}');if(${opening})root.addEventListener('animationend',()=>root.classList.remove('${clas}'),{once:true});true;`);
+}
+let openChatHost='';
 function openSettings(tab = 'appearance', maximize = false) {
  closeGames();
  setOptions(false);
- if (settings && !settings.isDestroyed()) { settings.show(); settings.focus(); if(maximize)settings.maximize(); settings.webContents.send('settings-tab', tab); return; }
- settings = new BrowserWindow({ icon: appIcon, width: 1000, height: 780, minWidth: 740, minHeight: 620, backgroundColor: '#1c1814', autoHideMenuBar: true, title: 'Petio · Your little companion', webPreferences: preferences });
+ if (settings && !settings.isDestroyed()) { if(settings.closing)return; const host=openChatHost;openChatHost=''; const area=screen.getDisplayMatching(settings.getBounds()).workArea;settings.setBounds({x:area.x,y:area.y,width:area.width,height:area.height});settings.show();settings.focus();liftPet();settings.webContents.send('settings-tab', tab); if(host)settings.webContents.send('settings-open-chat', host); return; }
+ const host=openChatHost;openChatHost='';
+ const to=settingsTarget();
+ settings = new BrowserWindow({ icon: appIcon, ...to, minWidth: 740, minHeight: 620, show: false, frame: false, transparent: true, hasShadow: false, backgroundColor: '#00000000', title: 'Petio · Your little companion', webPreferences: preferences });
  if (process.platform === 'win32') settings.setAppDetails({ appId: 'studio.petio.desktop', appIconPath: app.isPackaged ? process.execPath : path.join(__dirname, '../build/petio.ico'), appIconIndex: 0, relaunchDisplayName: 'Petio' });
  secure(settings); settings.loadFile(path.join(__dirname, 'settings.html'));
- settings.webContents.once('did-finish-load', () => { emit(); if(maximize)settings.maximize(); settings.webContents.send('settings-tab', tab); });
- settings.on('closed', () => { settings = null; });
+ settings.once('ready-to-show',()=>{if(!settings||settings.isDestroyed())return;settings.show();settings.focus();liftPet();playSettingsMotion(true).catch(()=>{});});
+ settings.webContents.once('did-finish-load', () => { emit(); settings.webContents.send('settings-tab', tab); if(host)settings.webContents.send('settings-open-chat', host); });
+ settings.on('close',event=>{
+  if(!settings||settings.skipMotion||app.isQuitting)return;
+  event.preventDefault();
+  if(settings.closing)return;
+  settings.closing=true;
+  playSettingsMotion(false).catch(()=>{});
+  setTimeout(()=>{if(!settings||settings.isDestroyed())return;settings.skipMotion=true;settings.close();},220);
+ });
+ settings.on('closed', () => { settings = null; liftPet(); setTimeout(liftPet, 150); });
 }
 function attention(manual = false) {
  if (!alive()) return;
@@ -326,7 +358,9 @@ else {
 
   savePath=path.join(app.getPath('userData'),'personality.json');
   try { state=sanitize(JSON.parse(fs.readFileSync(savePath,'utf8')) ?? {}); } catch { state=sanitize(); }
+  nativeTheme.on('updated',()=>{if(state&&state.chatTheme!=='light'&&state.chatTheme!=='dark')emit();});
   win=new BrowserWindow({ icon:appIcon, ...size, frame:false, transparent:true, resizable:false, maximizable:false, fullscreenable:false, skipTaskbar:true, alwaysOnTop:state.alwaysOnTop, show:false, hasShadow:false, webPreferences:preferences });
+  liftPet();
   win.on('closed',()=>{clearInterval(timer);drag=null;cancelTravel();win=null;app.quit();});
   win.on('blur',()=>{if(options&&!drag&&!playing)setOptions(false);});win.on('hide',()=>emit());win.on('show',()=>{if(social?.isAway()){win.hide();return;}ignoringMouse=undefined;ignoreMouse(false);emit();});
   secure(win);win.webContents.on('did-finish-load',()=>{win.webContents.setZoomFactor(1);win.webContents.setVisualZoomLevelLimits(1,1);});win.loadFile(path.join(__dirname,'index.html'));
@@ -334,7 +368,7 @@ else {
   win.webContents.once('did-finish-load', () => { if(alive()){petReady=true;win.showInactive();// Launched at login, or soon after the PC booted with launch-at-login on: a big excited hello instead of the usual one.
    const booted=app.isPackaged&&app.getLoginItemSettings().openAtLogin&&(process.argv.includes('--autostart')||require('node:os').uptime()<900);
    if(booted)setTimeout(welcomeBoot,1200);else act('happy',6500,phrase('happy')+'\nClick for activities. Drag to move.');} });
-  tray=new Tray(nativeImage.createFromPath(appIcon).resize({width:32,height:32})); tray.setToolTip('Petio · Your little companion');
+  tray=new Tray(nativeImage.createFromPath(path.join(__dirname,'assets/petio-32.png'))); tray.setToolTip('Petio · Your little companion');
   tray.on('click',()=>tray.popUpContextMenu(menu())); tray.on('right-click',()=>tray.popUpContextMenu(menu()));
   const trusted=e=>alive()&&(e.sender===win.webContents||(settings&&!settings.isDestroyed()&&e.sender===settings.webContents));
   updates=require('./updates.cjs').startUpdates({app,dialog,autoDownload:state.autoUpdate,getParent:()=>settings&&!settings.isDestroyed()?settings:null,notify:version=>{if(!Notification.isSupported())return;const note=new Notification({title:'Petio update',body:'Petio '+version+' is available. Download and install it from the tray or App settings.',icon:appIcon});note.on('click',()=>openSettings('app'));note.show();}});
@@ -349,6 +383,7 @@ else {
    readHost:()=>{const p=nativeAnchor();return {type:state.type,x:p.x,y:p.y,scale:state.scale,busy:!!(options||composing||drag||playing||travel)||['sleep','dead','beg','carried','gameThink'].includes(action)||!alive()||!win.isVisible()};},
    onNotice:n=>{
     if(!n||typeof n.name!=='string')return;
+    if(n.kind==='message'&&composing)return;
     const {notePlain}=require('./note-gifs.js');
     const spoken=n.kind==='message'&&typeof n.text==='string'?notePlain(n.text):'';
     const text=n.kind==='join'?n.name+' joined your group':spoken?n.name+': '+(spoken.length>140?spoken.slice(0,139)+'…':spoken):'';
@@ -372,13 +407,16 @@ else {
   ipcMain.handle('social-read',e=>trusted(e)?social.state():null);
   ipcMain.handle('social-command',(e,data)=>trusted(e)?social.command(data):{error:'Untrusted request.'});
   ipcMain.on('pet-composer',(e,open)=>{if(!alive()||e.sender!==win.webContents||typeof open!=='boolean'||open===composing)return;placeComposer(open);});
+  ipcMain.on('pet-close-composer',e=>{if(!alive()||!(e.sender===win.webContents||(settings&&e.sender===settings.webContents)))return;win.webContents.send('pet-close-composer');});
+ ipcMain.on('settings-close',e=>{if(settings&&!settings.isDestroyed()&&e.sender===settings.webContents)settings.close();});
+ ipcMain.on('settings-minimize',e=>{if(settings&&!settings.isDestroyed()&&e.sender===settings.webContents)settings.minimize();});
   ipcMain.on('pet-composer-box',(e,box)=>{if(!alive()||e.sender!==win.webContents)return;chatBox=box&&[box.x,box.y,box.w,box.h].every(Number.isFinite)?box:null;});
   ipcMain.handle('pet-settings',(e,patch)=>{
    if(!trusted(e)||!patch||typeof patch!=='object')return null;
-   const allowed=['type','scale','speed','personality','roaming','alwaysOnTop','attention','attentionMinutes','menuSize','lookAt','aware','notify','water','waterMinutes','prompts','crossScreens','sounds','volume','autoUpdate'];
+   const allowed=['type','scale','speed','personality','roaming','alwaysOnTop','attention','attentionMinutes','menuSize','lookAt','aware','notify','water','waterMinutes','prompts','crossScreens','sounds','volume','autoUpdate','chatTheme'];
    const safe=Object.fromEntries(allowed.filter(k=>Object.hasOwn(patch,k)).map(k=>[k,patch[k]]));
    state=sanitize({...state,...safe}); applyAwareness(); applyNotifications(); nextWater=0; nextScare=0; cancelTravel(); attentionHome=null; lastAttention=Date.now();
-   win.setAlwaysOnTop(state.alwaysOnTop); move(constrain(anchor()));syncDisplay();monitorHeights.clear();
+   liftPet(); move(constrain(anchor()));syncDisplay();monitorHeights.clear();
    if(typeof patch.login==='boolean'&&app.isPackaged)app.setLoginItemSettings({openAtLogin:patch.login,args:['--autostart']});
    if(updates)updates.setAutoDownload(state.autoUpdate);
    save(); act('happy',2500); return snapshot();
@@ -406,6 +444,7 @@ else {
   ipcMain.on('game-close',e=>{if(trusted(e)&&e.sender===win?.webContents)closeGames();});
   ipcMain.on('game-phase',(e,phase)=>{if(!playing||e.sender!==win?.webContents||!['think','reveal','place'].includes(phase))return;act(phase==='think'?'gameThink':phase==='reveal'?'gameReveal':'gamePlace',phase==='think'?30000:900,undefined,true);});
   ipcMain.on('game-result',(e,result)=>{if(!playing||e.sender!==win?.webContents||!['pet','player','draw'].includes(result))return;act(result==='pet'?'happy':result==='player'?'gameLose':'gameDraw',2200,undefined,true);sound(result==='pet'?'happy':'menu',true);});
+  ipcMain.on('pet-open-chat',(e,host)=>{if(!alive()||e.sender!==win.webContents)return;openChatHost=typeof host==='string'?host.slice(0,80):'';openSettings('friends-chat',true);});
   ipcMain.on('pet-command',(e,command)=>{
    if(!trusted(e))return;
    if(command==='games'){openGames();return;}
@@ -538,6 +577,6 @@ else {
   const runTick=()=>{tick();if(alive())timer=setTimeout(runTick,!win.isVisible()?1000:paused?75:1000/30);};runTick();
   applyAwareness();applyNotifications();watchPower();
  });
- app.on('before-quit',()=>{social?.stop();if(awareHandle)awareHandle.stop();if(noticeHandle)noticeHandle.stop();clearInterval(timer);cancelTravel();if(state)save();});
+ app.on('before-quit',()=>{app.isQuitting=true;social?.stop();if(awareHandle)awareHandle.stop();if(noticeHandle)noticeHandle.stop();clearInterval(timer);cancelTravel();if(state)save();});
  app.on('window-all-closed',()=>app.quit());
 }

@@ -42,7 +42,7 @@ function appendBubble(log,m,me,hooks){
  const line=document.createElement('p');line.className=mine?'mine':'theirs';
  addQuote(line,m.reply);
  const who=document.createElement('span');who.className='who';who.textContent=mine?'You':m.name;const body=document.createElement('span');renderNote(body,m.text);line.append(who,body);
- if(m.pinned){const mark=document.createElement('span');mark.className='pin-mark';mark.textContent='Pinned';line.append(mark);}
+ if(m.pinned){const mark=document.createElement('span');mark.className='pin-mark';mark.innerHTML=BUBBLE_ICONS.pin+'<span>Pinned</span>';wrap.prepend(mark);}
  if(m.id){
   const tools=document.createElement('div');tools.className='msg-tools';
   const more=bubbleButton('More',BUBBLE_ICONS.more),reply=bubbleButton('Reply',BUBBLE_ICONS.reply),react=bubbleButton('React',BUBBLE_ICONS.react);
@@ -63,7 +63,7 @@ function appendBubble(log,m,me,hooks){
 function openMessageMenu(anchor,m,me,hooks){
  closeBubbleMenus();
  const menu=document.createElement('div');menu.className='msg-menu';
- const when=document.createElement('p');when.className='when';when.textContent=new Date(m.at||Date.now()).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+ const when=document.createElement('p');when.className='when';const sent=new Date(m.at||Date.now());when.textContent=Number.isNaN(sent.getTime())?'':sent.toLocaleString([],{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
  const pin=document.createElement('button');pin.type='button';pin.innerHTML='<span>'+(m.pinned?'Unpin':'Pin')+'</span>'+BUBBLE_ICONS.pin;pin.onclick=e=>{e.stopPropagation();closeBubbleMenus();hooks.pin(m);};
  menu.append(when,pin);
  if(m.from===me&&m.id&&Date.now()-(m.at||0)<BUBBLE_UNSEND_FOR){
