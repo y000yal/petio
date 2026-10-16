@@ -32,9 +32,13 @@ if ($LASTEXITCODE -ne 0) { throw 'Signed installer build failed.' }
 
 $output = Join-Path (Get-Location) 'release/self-signed'
 Export-Certificate -Cert $cert -FilePath (Join-Path $output 'Petio Development.cer') | Out-Null
-$version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+$package = Get-Content package.json -Raw | ConvertFrom-Json
+$version = $package.version
+$installerName = $package.build.nsis.artifactName
+if (!$installerName) { $installerName = 'Petio Setup ${version}-self-signed.${ext}' }
+$installerName = $installerName.Replace('${version}', $version).Replace('${ext}', 'exe')
 $targets = @(
-    (Join-Path $output "Petio Setup $version-self-signed.exe"),
+    (Join-Path $output $installerName),
     (Join-Path $output 'win-unpacked/Petio.exe'),
     (Join-Path $output 'win-unpacked/resources/app.asar.unpacked/src/helper/aware.exe')
 )
