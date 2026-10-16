@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const {createService}=require('./social-server.cjs');
 const directory=path.join(__dirname,'../.smoke/social-'+Date.now());fs.mkdirSync(directory,{recursive:true});
 app.setName('PetioSocialSmoke');app.setPath('userData',directory);
-fs.writeFileSync(path.join(directory,'personality.json'),JSON.stringify({aware:false,notify:false,roaming:false,attention:false,sounds:false,water:false}));
+fs.writeFileSync(path.join(directory,'personality.json'),JSON.stringify({onboardingComplete:true,userName:'Tester',aware:false,notify:false,roaming:false,attention:false,sounds:false,water:false}));
 const {server}=createService();
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,timeout=12000){for(let i=0;i<timeout/150;i++){const value=await fn();if(value)return value;await wait(150);}throw new Error('Timed out waiting for desktop state');}
@@ -33,11 +33,12 @@ async function remote(route,data={},token=''){const r=await fetch('http://127.0.
   let state=await owner.webContents.executeJavaScript('window.pet.socialRead()');const friend=await remote('/register',{name:'Remote friend'});
   await remote('/room/join',{code:state.room.code},friend.token);await remote('/preferences',{accept:true},friend.token);
   const heart=setInterval(()=>remote('/state',{},friend.token).catch(()=>{}),2000);
+  await owner.webContents.executeJavaScript('window.pet.update({petNames:{miso:"Mochi"}})');
   await command({command:'refresh'});
   await until(async()=>connectionSettings.webContents.executeJavaScript('!!document.querySelector(".send-visit:not(:disabled)")'));
   await connectionSettings.webContents.executeJavaScript('document.querySelector(".send-visit:not(:disabled)").click()');
   await connectionSettings.webContents.executeJavaScript('document.querySelector("#social-visit-message").value="Meet for tea? ☕";document.querySelector("#social-visit").requestSubmit()');
-  await until(()=>!owner.isVisible());const arriving=(await remote('/state',{},friend.token)).incoming;assert.equal(arriving.phase,'arriving');assert.equal(arriving.message,'Meet for tea? ☕');
+  await until(()=>!owner.isVisible());const arriving=(await remote('/state',{},friend.token)).incoming;assert.equal(arriving.phase,'arriving');assert.equal(arriving.message,'Meet for tea? ☕');assert.equal(arriving.petName,'Mochi');
   await remote('/visit/arrive',{id:arriving.id},friend.token);await remote('/visit/return',{id:arriving.id,reply:'Yes, lunch!'},friend.token);
   await until(()=>owner.isVisible());assert.match(await owner.webContents.executeJavaScript('document.querySelector("#speech").textContent'),/Yes, lunch/);
   assert.equal((await command({command:'accept',accept:true})).ok,true);state=await owner.webContents.executeJavaScript('window.pet.socialRead()');

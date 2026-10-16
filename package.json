@@ -1,6 +1,6 @@
 {
   "name": "petio",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "Seven expressive desktop companions with reminders, playful physics and friend visits",
   "main": "src/main.cjs",
   "author": "Petio",

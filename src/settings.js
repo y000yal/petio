@@ -13,7 +13,7 @@ window.pet.onOpenChat(host=>{tab('friends-chat');if(host&&window.PetioDesk)windo
 document.querySelector('#window-min').onclick=()=>window.pet.minimizeSettings();
 document.querySelector('#window-close').onclick=()=>window.pet.closeSettings();
 function render(state){
- if(!state)return;current=state;
+ if(!state)return;for(const [type,pet]of Object.entries(companions)){pet.name=PetPersonal.petName(state,type);const tile=document.querySelector('[data-type='+type+']');if(tile){tile.querySelector('strong').textContent=pet.name;tile.setAttribute('aria-label',pet.name+' — '+pet.label);}}current=state;
  for(const b of document.querySelectorAll('[data-type]')){b.classList.toggle('selected',b.dataset.type===state.type);b.setAttribute('aria-pressed',String(b.dataset.type===state.type));}
  previewType||=state.type;
  for(const b of document.querySelectorAll('[data-type]'))b.classList.toggle('previewing',b.dataset.type===previewType&&previewType!==state.type);

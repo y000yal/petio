@@ -3,7 +3,7 @@ const { app, BrowserWindow, screen } = require('electron');
 app.disableHardwareAcceleration();
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const output=path.resolve(__dirname,'../.smoke');fs.mkdirSync(output,{recursive:true});
-fs.writeFileSync(path.join(output,'personality.json'),JSON.stringify({attention:false}));app.setPath('userData',output);
+fs.writeFileSync(path.join(output,'personality.json'),JSON.stringify({onboardingComplete:true,userName:'Tester',attention:false}));app.setPath('userData',output);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function capture(window){
  let error;

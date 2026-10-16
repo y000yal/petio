@@ -1,3 +1,4 @@
+let petSwap=null;
 const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),speech=document.querySelector('#speech'),ring=document.querySelector('#actions');
 let state={type:'miso',action:'idle',scale:.65,direction:1,petX:260,petY:250},time=0,previous=performance.now(),speechTimer,frameTimer=null,menuPage='home';
 let swing=0,swingVelocity=0,targetSwing=0,stretch=1,targetStretch=1,hasPainted=false;
@@ -87,6 +88,8 @@ function renderMenu(){
  });
 }
 function receive(next){
+ if(state.started&&state.type!==next.type){const at=Date.now();petSwap={state:{...state,presence:{mode:'exit',at,duration:180}},at};next={...next,presence:{mode:'enter',at:at+180,duration:350}};}
+ for(const type of Object.keys(companions))companions[type].name=PetPersonal.petName(next,type);
  if(!state.options&&next.options)menuPage='home';const closing=state.options&&!next.options,rebuild=!closing&&(next.options!==state.options||next.type!==state.type||next.petX!==state.petX||next.petY!==state.petY||next.menuSide!==state.menuSide||next.menuSize!==state.menuSize||next.roaming!==state.roaming||next.screens!==state.screens);
  if(next.type!==state.type){speech.classList.remove('visible');clearTimeout(speechTimer);}
  const prevUpdate=state.update&&state.update.status;state=next;clearTimeout(ringTimer);const deliver=document.querySelector('#deliver');if(deliver)deliver.dataset.mode=next.chatMode==='dark'?'dark':'light';
@@ -127,10 +130,11 @@ function frame(){
  const spring=advanceSwing(swing,swingVelocity,targetSwing,dt);swing=spring.swing;swingVelocity=spring.velocity;stretch+=(targetStretch-stretch)*Math.min(1,dt*10);
  lift+=((state.climb||0)-lift)*Math.min(1,dt*4);look.x+=(lookTarget.x-look.x)*Math.min(1,dt*9);look.y+=(lookTarget.y-look.y)*Math.min(1,dt*9);ctx.clearRect(0,0,canvas.width,canvas.height);ctx.save();
  if(clip){const x=state.petX+clip.dx,W=canvas.width,H=canvas.height;clip.keepLeft?ctx.rect(0,0,Math.max(0,x),H):ctx.rect(Math.min(W,x),0,W,H);ctx.clip();}
+ if(petSwap){if(Date.now()-petSwap.at<180)drawPet(ctx,petSwap.state,time,(Date.now()-petSwap.state.started)/1000,petSwap.state.petX,petSwap.state.petY,petSwap.state.scale);else petSwap=null;}
  drawPet(ctx,{...state,gameHand:window.petGameHand,swing,stretch,climb:lift,look},time,(Date.now()-(state.started||Date.now()))/1000,state.petX,state.petY,state.scale);ctx.restore();
 
  hasPainted=true;if(document.hidden||state.hidden)return;
- if(!state.paused||state.action==='carried'||Math.abs(swing)+Math.abs(swingVelocity)>.002)frameTimer=setTimeout(frame,1000/((['idle','sleep'].includes(state.action)||(state.action==='dead'&&Date.now()-state.started>1500&&state.until-Date.now()>1500))?15:30));
+ if((state.presence&&Date.now()-state.presence.at<state.presence.duration)||!state.paused||state.action==='carried'||Math.abs(swing)+Math.abs(swingVelocity)>.002)frameTimer=setTimeout(frame,1000/((['idle','sleep'].includes(state.action)||(state.action==='dead'&&Date.now()-state.started>1500&&state.until-Date.now()>1500))?15:30));
 }
 function restart(){clearTimeout(frameTimer);frameTimer=null;previous=performance.now();frame();}
 document.addEventListener('visibilitychange',restart);

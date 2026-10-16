@@ -1,9 +1,9 @@
 const portalCanvas=document.querySelector('canvas'),portalContext=portalCanvas.getContext('2d'),portalQuery=new URLSearchParams(location.search);
-const portalScale=Math.max(.3,Math.min(1.4,(Number(portalQuery.get('scale'))||.65)*1.6)),portalStart=performance.now();
+const openingHeight=Number(portalQuery.get('height'))||240,portalLife=Number(portalQuery.get('life'))||2100,portalStart=performance.now();portalCanvas.width=innerWidth;portalCanvas.height=innerHeight;
 // Small transient canvases keep the effect local to each monitor edge.
 function drawPortal(){
- const c=portalContext,t=Date.now()/1000,opening=Math.min(1,(performance.now()-portalStart)/180);
- c.clearRect(0,0,160,400);c.save();c.translate(80,200);c.scale(portalScale*opening,portalScale*opening*1.45);
+ const c=portalContext,t=Date.now()/1000,opening=Math.max(0,Math.min(1,(performance.now()-portalStart)/220,(portalLife-(performance.now()-portalStart))/180));
+ c.clearRect(0,0,portalCanvas.width,portalCanvas.height);c.save();c.translate(portalCanvas.width/2,portalCanvas.height/2);const sy=openingHeight/156;c.scale(sy*.65*opening,sy*opening);
  const core=c.createRadialGradient(-4,0,2,0,0,88);core.addColorStop(0,'#100b22f5');core.addColorStop(.65,'#19102aee');core.addColorStop(1,'#482268aa');
  c.fillStyle=core;c.beginPath();c.ellipse(0,0,22,78,0,0,Math.PI*2);c.fill();
  c.globalCompositeOperation='screen';

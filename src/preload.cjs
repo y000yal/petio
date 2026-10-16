@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('pet', {
   zoneSet: () => ipcRenderer.invoke('pet-zone-set'),
   zoneClear: () => ipcRenderer.invoke('pet-zone-clear'),
   previewSound: type => ipcRenderer.send('pet-preview-sound', type),
+  onboarding: data => ipcRenderer.invoke('pet-onboarding',data),
   update: patch => ipcRenderer.invoke('pet-settings', patch),
   updateStatus: () => ipcRenderer.invoke('pet-update-status'),
   updateCheck: () => ipcRenderer.invoke('pet-update-check'),

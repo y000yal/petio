@@ -1,10 +1,11 @@
 let visits=[],selected=null,timer,hit=false,pending=false,last=performance.now(),host={x:240,y:240,type:'miso',scale:.65,busy:false};
+const leaving=new Map();
 const born=new Map(),petted=new Map(),drafts=new Map(),bodies=new Map();
 const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),bubble=document.querySelector('.bubble');
 let spots=[];
 function fill(id){
  const v=visits.find(item=>item.id===id);if(!v)return;
- document.querySelector('#owner').textContent=v.ownerName+"’s "+companions[v.type].name+' ✨';
+ document.querySelector('#owner').textContent=v.ownerName+"’s "+(v.petName||companions[v.type].name)+' ✨';
  renderNote(document.querySelector('#message'),v.message);
  document.querySelector('#reply').value=drafts.get(id)||'';
  for(const b of document.querySelectorAll('#visitor-list button'))b.setAttribute('aria-pressed',String(b.dataset.id===id));
@@ -18,13 +19,14 @@ function placeBubble(){
  bubble.style.top=Math.max(8,Math.min(innerHeight-height-8,body.y-height-36))+'px';
 }
 function choose(id){if(selected)drafts.set(selected,document.querySelector('#reply').value);selected=id;fill(id);}
+window.visitor.onExit(id=>{for(const v of visits)if(!id||v.id===id)leaving.set(v.id,Date.now());});
 window.visitor.onState(payload=>{
- visits=payload.visits||[payload];const now=performance.now();
- for(const map of [born,petted,drafts,bodies])for(const id of map.keys())if(!visits.some(v=>v.id===id))map.delete(id);
+ const next=payload.visits||[payload],retired=visits.filter(v=>!next.some(n=>n.id===v.id));for(const v of retired)if(!leaving.has(v.id))leaving.set(v.id,Date.now());visits=[...next,...retired.filter(v=>Date.now()-leaving.get(v.id)<350).map(v=>({...v,retiring:true}))];const now=performance.now();
+ for(const map of [born,petted,drafts,bodies,leaving])for(const id of map.keys())if(!visits.some(v=>v.id===id))map.delete(id);
  for(const v of visits)if(!born.has(v.id))born.set(v.id,now);
  document.querySelector('#visitor-count').textContent=visits.length>1?visits.length+' visitors · choose one to read the note':'A note from your friend';
  const nav=document.querySelector('#visitor-list');nav.hidden=visits.length<2;nav.replaceChildren();
- for(const v of visits){const b=document.createElement('button');b.dataset.id=v.id;b.textContent=v.ownerName+"’s "+companions[v.type].name;b.onclick=()=>choose(v.id);nav.append(b);}
+ for(const v of visits){const b=document.createElement('button');b.dataset.id=v.id;b.textContent=v.ownerName+"’s "+(v.petName||companions[v.type].name);b.onclick=()=>choose(v.id);nav.append(b);}
  if(selected&&!visits.some(v=>v.id===selected)){selected=null;bubble.hidden=true;}
  else if(selected&&!bubble.hidden){drafts.set(selected,document.querySelector('#reply').value);fill(selected);}
 });
@@ -60,7 +62,7 @@ function frame(){
  let active=false;
  for(const v of visits){
   const b=bodyFor(v,width,height),scale=Math.min(.7,host.scale||.65);
-  if(b.mode==='play'){
+  if(v.retiring){b.mode='leaving';b.tx=b.x;b.ty=b.y;}else if(b.mode==='play'){
    const stage=socialStage(now-b.actAt);
    if(stage==='end'||host.busy||Math.hypot(b.x-host.x,b.y-host.y)>220){b.mode='roam';b.cool=now+18000+Math.random()*12000;b.stage='';window.visitor.play({id:v.id,guest:v.type,side:b.x>=host.x?1:-1,stage:'end'});wander(b,width,height);}
    else{b.face=b.x<host.x?1:-1;b.act=stage==='greet'?'greet':stage==='guest'?'socialTalk':stage==='host'?'socialListen':pairPlay(host.type,v.type).guest;
@@ -77,17 +79,18 @@ function frame(){
    if(b.mode!=='play'&&now>b.nextSeek){b.nextSeek=now+4500+Math.random()*5000;const target=meetingSpot(host,width,height,scale);if(target&&!host.busy&&!playing()&&now>b.cool){b.mode='seek';b.tx=target.x;b.ty=target.y;}else if(b.mode!=='seek')wander(b,width,height);}
   }
   const arriving=(now-born.get(v.id))/1000<1.2,pet=now<(petted.get(v.id)||0),acting=b.mode==='play';
-  active||=arriving||pet||acting||Math.hypot(b.tx-b.x,b.ty-b.y)>16;
+  active||=arriving||pet||acting||leaving.has(v.id)||Math.hypot(b.tx-b.x,b.ty-b.y)>16;
   const action=pet?'scratch':acting?b.act:Math.hypot(b.tx-b.x,b.ty-b.y)>16?'walk':'idle';
   const age=acting?(now-b.stageAt)/1000:(now-born.get(v.id))/1000;
   ctx.save();
-  if(arriving)ctx.globalAlpha=Math.min(1,(now-born.get(v.id))/900);
-  drawPet(ctx,{type:v.type,action,direction:b.face,meet:acting,started:acting?b.stageAt:born.get(v.id),until:acting?b.stageAt+(b.stage==='play'?3400:2600):born.get(v.id)+800},now/1000,age,b.x,b.y,scale);
+
+  drawPet(ctx,{type:v.type,presence:{mode:leaving.has(v.id)?'exit':'enter',at:leaving.get(v.id)||Date.now()-(now-born.get(v.id)),duration:leaving.has(v.id)?350:700},action,direction:b.face,meet:acting,started:acting?b.stageAt:born.get(v.id),until:acting?b.stageAt+(b.stage==='play'?3400:2600):born.get(v.id)+800},now/1000,age,b.x,b.y,scale);
   ctx.restore();
-  if(acting&&b.stage==='guest')drawChat(pairChat(host.type,v.type,b.variation).guest,b.x,b.y-140*scale);
-  drawScroll(b.x,b.y-78*scale);
+  if(acting&&b.stage==='guest')drawChat((host.name?host.name+', ':'')+pairChat(host.type,v.type,b.variation).guest,b.x,b.y-140*scale);
+  ctx.save();ctx.globalAlpha=PetPresence.transitionPose(leaving.has(v.id)?'exit':'enter',leaving.has(v.id)?(Date.now()-leaving.get(v.id))/350:(now-born.get(v.id))/700).alpha;drawScroll(b.x,b.y-78*scale);ctx.restore();
   spots.push({id:v.id,l:b.x-54,r:b.x+54,t:b.y-108*scale,b:b.y+24});
  }
+ visits=visits.filter(v=>!v.retiring||Date.now()-leaving.get(v.id)<350);
  placeBubble();
  timer=setTimeout(frame,document.hidden?1000:1000/(active?24:12));
 }

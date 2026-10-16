@@ -1,4 +1,6 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu, Tray, nativeImage, nativeTheme, screen, Notification, powerMonitor } = require('electron');
+const {petName,personalLine}=require('./personal.js');
+const {portalGeometry}=require('./presence.js');
 const { characterLine, soundCaption } = require('./characters.js');
 // Light on memory: software rendering is plenty for one small canvas and avoids a heavy GPU process; audio stays in-process.
 app.disableHardwareAcceleration();app.commandLine.appendSwitch('disable-features','AudioServiceOutOfProcess');
@@ -7,7 +9,7 @@ const fs = require('node:fs');
 const appIcon = path.join(__dirname, 'assets/petio.png');
 if (process.platform === 'win32') app.setAppUserModelId('studio.petio.desktop');
 const { sanitize, choose, keepOnScreen, nextDisplay, dueReminders, normalizeWindow, nextWindowTime, nativePoint, ghostTravelPoint, types } = require('./brain.cjs');
-let playing=false;
+let playing=false,introTravel=null,presence=null,hideTimer=null,enterTimer=null,quittingFade=false;
 let win, settings, tray, timer, state, savePath, drag, travel, attentionHome, social, updates;
 if(process.env.PETIO_PROFILE){const profile=process.env.PETIO_PROFILE;if(!/^[a-z0-9-]{1,30}$/i.test(profile))throw new Error('Invalid test profile');const directory=path.join(app.getPath('appData'),'Petio-prototype-'+profile);fs.mkdirSync(directory,{recursive:true});app.setPath('userData',directory);}
 let action = 'idle', started = Date.now(), until = 0, direction = 1, paused = false, options = false, composing = false, chatBox = null, meetUntil = 0;
@@ -41,10 +43,12 @@ const preferences = { preload: path.join(__dirname, 'preload.cjs'), contextIsola
 function phrase(event='curious') { return characterLine(state.type,event); }
 function save() { try { fs.writeFileSync(savePath + '.tmp', JSON.stringify(state)); fs.renameSync(savePath + '.tmp', savePath); } catch (e) { console.error('Could not save memory:', e.message); } }
 function appearance(){return state&&(state.chatTheme==='light'||state.chatTheme==='dark')?state.chatTheme:(nativeTheme.shouldUseDarkColors?'dark':'light');}
-function snapshot(message) { const u=updates?updates.snapshot():null,update=u&&(u.status==='available'||u.status==='downloading'||u.status==='ready')?{status:u.status,version:u.version}:null; return { ...state, chatMode:appearance(), action, started, until, direction, paused, options, playing, message, petX:petOffset.x,petY:petOffset.y,travelContinuous:!!travel?.continuous,travelSplit:travel?.split||.5,climb:action==='walk'?climb:0,need:needLevel,excite:exciteLevel,screens:screen.getAllDisplays().length,quick:quickUntil>Date.now(),menuSide,meet:Date.now()<meetUntil,hidden: !alive() || !win.isVisible(), packaged: app.isPackaged, login: app.getLoginItemSettings().openAtLogin, update }; }
+function snapshot(message) { const u=updates?updates.snapshot():null,update=u&&(u.status==='available'||u.status==='downloading'||u.status==='ready')?{status:u.status,version:u.version}:null; return { ...state, chatMode:appearance(), action, started, until, presence, direction, paused, options, playing, message, petX:petOffset.x,petY:petOffset.y,travelContinuous:!!travel?.continuous,travelSplit:travel?.split||.5,climb:action==='walk'?climb:0,need:needLevel,excite:exciteLevel,screens:screen.getAllDisplays().length,quick:quickUntil>Date.now(),menuSide,meet:Date.now()<meetUntil,hidden: !alive() || !win.isVisible(), packaged: app.isPackaged, login: app.getLoginItemSettings().openAtLogin, update }; }
 function ignoreMouse(ignore) { if(alive() && ignoringMouse!==ignore){win.setIgnoreMouseEvents(ignore,{forward:true});ignoringMouse=ignore;} }
-function emit(message) { if(message)speechUntil=Date.now()+(action==='attention'?14000:5500);if(settings&&!settings.isDestroyed())settings.setBackgroundColor(appearance()==='light'?'#f7f1e6':'#121216');for (const w of [win, settings]) if (w && !w.isDestroyed()) w.webContents.send('pet-state', snapshot(message)); }
-function act(next, duration = 5000, message, quiet=false) { pendingTurn=null;action = next; started = Date.now(); until = started + duration; emit(message);if(!quiet&&['happy','pet','jump','flip','dance','attention','trident','pounce','hover','vanish','spell','yawn','portalOut','sleep'].includes(next)&&alive()&&win.isVisible())sound(next,false,false,!!message); }
+function emit(message,raw=false) { if(message&&!raw)message=personalLine(message,state); if(message)speechUntil=Date.now()+(action==='attention'?14000:5500);if(settings&&!settings.isDestroyed())settings.setBackgroundColor(appearance()==='light'?'#f7f1e6':'#121216');for (const w of [win, settings]) if (w && !w.isDestroyed()) w.webContents.send('pet-state', snapshot(message)); }
+function act(next, duration = 5000, message, quiet=false, raw=false) { pendingTurn=null;action = next; started = Date.now(); until = started + duration; emit(message,raw);if(!quiet&&['happy','pet','jump','flip','dance','attention','trident','pounce','hover','vanish','spell','yawn','portalOut','sleep'].includes(next)&&alive()&&win.isVisible())sound(next,false,false,!!message); }
+function showPet(){if(!alive()||social?.isAway())return;clearTimeout(hideTimer);if(win.isVisible()&&presence?.mode==='exit'){presence={mode:'enter',at:Date.now(),duration:400};emit();}win.showInactive();}
+function hidePet(){if(!alive())return;clearTimeout(hideTimer);clearTimeout(enterTimer);presence={mode:'exit',at:Date.now(),duration:400};emit();hideTimer=setTimeout(()=>{if(alive()&&presence?.mode==='exit')win.hide();},400);}
 function alive() { return win && !win.isDestroyed(); }
 function liftPet(){
  if(!alive()||!state)return;
@@ -124,8 +128,8 @@ let awareHandle=null,lastCat=null,lastAppComment=0,hiddenByFull=false;const catA
 function onAwareness(info){
  const cat=require('./appmood.cjs').classify(info.fg,process.pid),full=!!info.fg&&info.fg.fullscreen&&info.fg.pid!==process.pid&&(!cat||['video','game','meeting'].includes(cat)),now=Date.now(); // tuck away only for full-screen video, games and meetings; a maximized or full-screen browser/editor still shows the pet
  if(!alive())return;
- if(full&&win.isVisible()&&!hiddenByFull){hiddenByFull=true;if(options)setOptions(false,true);win.hide();}
- else if(!full&&hiddenByFull){hiddenByFull=false;win.showInactive();}
+ if(full&&win.isVisible()&&!hiddenByFull){hiddenByFull=true;if(options)setOptions(false,true);hidePet();}
+ else if(!full&&hiddenByFull){hiddenByFull=false;showPet();}
  if(cat&&cat!==lastCat&&!full&&state.prompts&&win.isVisible()&&!options&&!drag&&!travel&&!needLevel&&!['carried','sleep','dead','alert','beg'].includes(action)&&now-lastAppComment>60000&&now-(catAt.get(cat)||0)>480000){
   lastAppComment=now;catAt.set(cat,now);emit(phrase('app_'+cat));
  }
@@ -134,7 +138,7 @@ function onAwareness(info){
 function applyAwareness(){
  const on=state.aware&&process.platform==='win32'&&!process.env.PETIO_SMOKE; // the smoke test must not react to whatever is on screen
  if(on&&!awareHandle)awareHandle=require('./awareness.cjs').start(onAwareness);
- else if(!on&&awareHandle){awareHandle.stop();awareHandle=null;if(hiddenByFull&&alive()){hiddenByFull=false;win.showInactive();}}
+ else if(!on&&awareHandle){awareHandle.stop();awareHandle=null;if(hiddenByFull&&alive()){hiddenByFull=false;showPet();}}
 }
 // Welcome back: excitement grows with how long you were away (screen locked / PC asleep), and a bigger greeting after a restart with launch-at-login on.
 function welcome(level,line){
@@ -280,7 +284,7 @@ function attention(manual = false) {
  if (!alive()) return;
  if (needLevel||!manual && (!state.attention || paused || options || drag || travel || !win.isVisible() || action === 'sleep' || action === 'dead')) return;
  // Needy mode: stay put, jump and twirl, and get more desperate until petted.
- cancelTravel(); options = false; lastAttention = needStep = needLine = Date.now(); needLevel = 1; win.showInactive();
+ cancelTravel(); options = false; lastAttention = needStep = needLine = Date.now(); needLevel = 1; showPet();
  act('beg', 3600000, state.prompts ? phrase('need1') : undefined, true); sound('attention', true);
 }
 function needier(now,hovering){
@@ -310,9 +314,9 @@ function travelTo(next) {
   route.from={x:route.sourcePortal.x-direction*70*state.scale,y:from.y};
   move(route.from);
   const loading=[route.sourcePortal,route.destinationPortal].map(point=>{
-   const portal=new BrowserWindow({...nativePoint({x:point.x-80,y:point.y-200}),width:160,height:400,frame:false,transparent:true,resizable:false,focusable:false,skipTaskbar:true,alwaysOnTop:state.alwaysOnTop,hasShadow:false,show:false,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
+   const geometry=portalGeometry(state.type,state.scale,point);const portal=new BrowserWindow({...geometry,frame:false,transparent:true,resizable:false,focusable:false,skipTaskbar:true,alwaysOnTop:state.alwaysOnTop,hasShadow:false,show:false,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
    portalWindows.push(portal);portal.setIgnoreMouseEvents(true);secure(portal);
-   return portal.loadFile(path.join(__dirname,'portal.html'),{query:{scale:String(state.scale)}}).then(()=>{if(travel===route&&!portal.isDestroyed())portal.showInactive();});
+   return portal.loadFile(path.join(__dirname,'portal.html'),{query:{height:String(geometry.openingHeight),life:'2100'}}).then(()=>{if(travel===route&&!portal.isDestroyed())portal.showInactive();});
   });
   Promise.all(loading).then(()=>{if(travel===route){route.pending=false;route.start=Date.now();act('portalOut',900,state.prompts?phrase('travel'):undefined);}}).catch(error=>{if(travel===route){console.warn('Portal unavailable:',error.message);move(route.to);logicalDisplayId=route.targetId;cancelTravel();act('idle');}});
   return;
@@ -346,12 +350,12 @@ function menu() { const update=updates?updates.snapshot():{status:'idle'}; retur
  { label: 'Reminders', click: () => openSettings('reminders') }, { type: 'separator' },
  { label: 'Come say hello', click: () => attention(true) }, { label: 'Visit next screen', click: () => perform('visit') },
  { label: paused ? 'Resume companion' : 'Pause companion', click: () => { paused=!paused; options=false; cancelTravel(); act('idle'); } },
- { label: win.isVisible() ? 'Hide companion' : 'Show companion', click: () => { options=false; drag=null; cancelTravel(); win.isVisible() ? win.hide() : win.showInactive(); } },
+ { label: win.isVisible() ? 'Hide companion' : 'Show companion', click: () => { options=false; drag=null; cancelTravel(); win.isVisible() ? hidePet() : showPet(); } },
  { type: 'separator' }, { label: 'Quit Petio', click: () => app.quit() }
 ]); }
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
- app.on('second-instance', () => { if (alive()) { win.showInactive(); openSettings(); } });
+ app.on('second-instance', () => { if (alive()) { showPet(); openSettings(); } });
  app.whenReady().then(() => {
  if(process.argv.includes('--dev')){ // reload windows on UI edits; tools/dev.cjs restarts on main-process edits
   let hot;fs.watch(__dirname,(_e,file)=>{if(/^(main|preload|brain|awareness|appmood|notifications|overlay-preload)\.cjs$|^characters\.js$/.test(file||''))return;clearTimeout(hot);hot=setTimeout(()=>{for(const w of BrowserWindow.getAllWindows())if(!w.isDestroyed())w.webContents.reloadIgnoringCache();},150);});
@@ -360,15 +364,14 @@ else {
   savePath=path.join(app.getPath('userData'),'personality.json');
   try { state=sanitize(JSON.parse(fs.readFileSync(savePath,'utf8')) ?? {}); } catch { state=sanitize(); }
   nativeTheme.on('updated',()=>{if(state&&state.chatTheme!=='light'&&state.chatTheme!=='dark')emit();});
-  win=new BrowserWindow({ icon:appIcon, ...size, frame:false, transparent:true, resizable:false, maximizable:false, fullscreenable:false, skipTaskbar:true, alwaysOnTop:state.alwaysOnTop, show:false, hasShadow:false, webPreferences:preferences });
+  win=new BrowserWindow({ opacity:0, icon:appIcon, ...size, frame:false, transparent:true, resizable:false, maximizable:false, fullscreenable:false, skipTaskbar:true, alwaysOnTop:state.alwaysOnTop, show:false, hasShadow:false, webPreferences:preferences });
   liftPet();
   win.on('closed',()=>{clearInterval(timer);drag=null;cancelTravel();win=null;app.quit();});
-  win.on('blur',()=>{if(options&&!drag&&!playing)setOptions(false);});win.on('hide',()=>emit());win.on('show',()=>{if(social?.isAway()){win.hide();return;}ignoringMouse=undefined;ignoreMouse(false);emit();});
+  win.on('blur',()=>{if(options&&!drag&&!playing)setOptions(false);});win.on('hide',()=>emit());win.on('show',()=>{if(social?.isAway()){win.hide();return;}clearTimeout(hideTimer);presence={mode:'enter',at:Date.now(),duration:500};win.setOpacity(0);clearTimeout(enterTimer);const entered=Date.now(),fade=()=>{if(!alive()||presence?.mode!=='enter')return;win.setOpacity(Math.min(1,(Date.now()-entered)/350));if(Date.now()-entered<350)enterTimer=setTimeout(fade,33);};fade();ignoringMouse=undefined;ignoreMouse(false);emit();});
   secure(win);win.webContents.on('did-finish-load',()=>{win.webContents.setZoomFactor(1);win.webContents.setVisualZoomLevelLimits(1,1);});win.loadFile(path.join(__dirname,'index.html'));
   const primary=screen.getPrimaryDisplay(),a=primary.workArea;logicalDisplayId=primary.id;move(constrain({ x:a.x+a.width-200, y:a.y+a.height-160 }));
-  win.webContents.once('did-finish-load', () => { if(alive()){petReady=true;win.showInactive();// Launched at login, or soon after the PC booted with launch-at-login on: a big excited hello instead of the usual one.
-   const booted=app.isPackaged&&app.getLoginItemSettings().openAtLogin&&(process.argv.includes('--autostart')||require('node:os').uptime()<900);
-   if(booted)setTimeout(welcomeBoot,1200);else act('happy',6500,phrase('happy')+'\nClick for activities. Drag to move.');} });
+  win.webContents.once('did-finish-load', () => { if(alive()){petReady=true;showPet();// Launched at login, or soon after the PC booted with launch-at-login on: a big excited hello instead of the usual one.
+   if(!state.onboardingComplete){act('greet',6000,'Hello! I’m '+petName(state,state.type)+'. What should I call you? 🐾');openSettings('welcome');}else welcomeBoot();} });
   tray=new Tray(nativeImage.createFromPath(path.join(__dirname,'assets/petio-32.png'))); tray.setToolTip('Petio · Your little companion');
   tray.on('click',()=>tray.popUpContextMenu(menu())); tray.on('right-click',()=>tray.popUpContextMenu(menu()));
   const trusted=e=>alive()&&(e.sender===win.webContents||(settings&&!settings.isDestroyed()&&e.sender===settings.webContents));
@@ -382,7 +385,7 @@ else {
   if(app.isPackaged){setTimeout(()=>updates.check(),8000);setInterval(()=>{const u=updates.snapshot();if(!['checking','downloading','ready'].includes(u.status))updates.check();},30*60*1000);}
   ipcMain.handle('pet-read',e=>trusted(e)?snapshot():null);
   social=require('./social.cjs').startSocial({directory:app.getPath('userData'),readPet:()=>state,
-   readHost:()=>{const p=nativeAnchor();return {type:state.type,x:p.x,y:p.y,scale:state.scale,busy:!!(paused||options||composing||drag||playing||travel)||['sleep','dead','beg','carried','gameThink','alert'].includes(action)||!alive()||!win.isVisible()};},
+   readHost:()=>{const p=nativeAnchor();return {type:state.type,name:petName(state,state.type),x:p.x,y:p.y,scale:state.scale,busy:!!(paused||options||composing||drag||playing||travel)||['sleep','dead','beg','carried','gameThink','alert'].includes(action)||!alive()||!win.isVisible()};},
    onNotice:n=>{
     if(!n||typeof n.name!=='string')return;
     if(n.kind==='message'&&composing)return;
@@ -392,17 +395,17 @@ else {
     if(!text)return;
     if(Notification.isSupported())new Notification({title:n.kind==='message'?n.name:'Petio',body:n.kind==='message'?spoken:text,icon:appIcon}).show();
     const bubble=n.kind==='message'?n.name+': '+n.text:text;
-    if(alive()&&win.isVisible()&&!travel&&!drag&&!playing&&action!=='portalOut')act('happy',n.kind==='message'?9000:7000,bubble);
+    if(alive()&&win.isVisible()&&!travel&&!drag&&!playing&&action!=='portalOut')act('happy',n.kind==='message'?9000:7000,bubble,false,true);
    },
-   onPlay:(guest,side,stage='play',variation=0)=>{if(stage==='end'){meetUntil=0;return;}if(!alive()||!win.isVisible()||options||composing||drag||playing||travel||paused||['sleep','dead','beg','carried','gameThink','portalOut','portalIn','alert'].includes(action))return;const {pairPlay,pairChat}=require('./pairs.js'),duo=pairPlay(state.type,guest);direction=side>0?-1:1;if(stage==='greet')meetUntil=Date.now()+10000;const duration=stage==='greet'?1200:stage==='play'?3400:2600;act(stage==='greet'?'greet':stage==='guest'?'socialListen':stage==='host'?'socialTalk':duo.host,duration,stage==='host'?pairChat(state.type,guest,variation).host:undefined,true);},
+   onPlay:(guest,side,stage='play',variation=0,guestName='')=>{if(stage==='end'){meetUntil=0;return;}if(!alive()||!win.isVisible()||options||composing||drag||playing||travel||paused||['sleep','dead','beg','carried','gameThink','portalOut','portalIn','alert'].includes(action))return;const {pairPlay,pairChat}=require('./pairs.js'),duo=pairPlay(state.type,guest);direction=side>0?-1:1;if(stage==='greet')meetUntil=Date.now()+10000;const duration=stage==='greet'?1200:stage==='play'?3400:2600;act(stage==='greet'?'greet':stage==='guest'?'socialListen':stage==='host'?'socialTalk':duo.host,duration,stage==='host'?(guestName?guestName+', ':'')+pairChat(state.type,guest,variation).host:undefined,true,true);},
    setAway:async away=>{cancelTravel();drag=null;options=false;needLevel=0;if(away&&alive()){
     closeGames();
     act('portalOut',850,'Off to visit a friend! ✨');
-    const p=anchor(),point=nativePoint({x:p.x-48,y:p.y-110});
-    const portal=new BrowserWindow({...point,width:96,height:220,frame:false,transparent:true,resizable:false,skipTaskbar:true,alwaysOnTop:true,show:false,hasShadow:false,webPreferences:{preload:path.join(__dirname,'overlay-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
-    secure(portal);await portal.loadFile(path.join(__dirname,'portal.html'),{query:{scale:String(state.scale)}}).catch(()=>{});if(!portal.isDestroyed())portal.showInactive();
-    await new Promise(resolve=>setTimeout(resolve,850));if(!portal.isDestroyed())portal.destroy();if(alive())win.hide();
-   }else if(alive()&&!hiddenByFull)win.showInactive();},
+    const p=anchor(),geometry=portalGeometry(state.type,state.scale,p);
+    const portal=new BrowserWindow({...geometry,frame:false,transparent:true,resizable:false,skipTaskbar:true,alwaysOnTop:true,show:false,hasShadow:false,webPreferences:{preload:path.join(__dirname,'overlay-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+    secure(portal);await portal.loadFile(path.join(__dirname,'portal.html'),{query:{height:String(geometry.openingHeight),life:'1000'}}).catch(()=>{});if(!portal.isDestroyed())portal.showInactive();
+    await new Promise(resolve=>setTimeout(resolve,200));if(alive()){presence={mode:'exit',at:Date.now(),duration:500};emit();}await new Promise(resolve=>setTimeout(resolve,800));if(!portal.isDestroyed())portal.destroy();if(alive())win.hide();
+   }else if(alive()&&!hiddenByFull)showPet();},
    returned:message=>{if(alive())act('happy',8000,message);},
    onState:value=>{if(settings&&!settings.isDestroyed())settings.webContents.send('social-state',value);if(alive())win.webContents.send('social-state',value);}
   });
@@ -413,9 +416,10 @@ else {
  ipcMain.on('settings-close',e=>{if(settings&&!settings.isDestroyed()&&e.sender===settings.webContents)settings.close();});
  ipcMain.on('settings-minimize',e=>{if(settings&&!settings.isDestroyed()&&e.sender===settings.webContents)settings.minimize();});
   ipcMain.on('pet-composer-box',(e,box)=>{if(!alive()||e.sender!==win.webContents)return;chatBox=box&&[box.x,box.y,box.w,box.h].every(Number.isFinite)?box:null;});
+  ipcMain.handle('pet-onboarding',(e,data)=>{if(!trusted(e)||e.sender!==settings?.webContents||!data||!Number.isInteger(data.step)||data.step<0||data.step>7)return null;if(data.step===7){if(!state.userName)return {error:'Please tell your pet your name first.'};state.onboardingComplete=true;introTravel=null;save();welcomeBoot();return snapshot();}const r=data.target;if(!r||![r.x,r.y,r.width,r.height].every(Number.isFinite)||r.width<=0||r.height<=0)return null;const bounds=settings.getContentBounds(),zoom=settings.webContents.getZoomFactor(),from=anchor(),area=screen.getDisplayMatching(bounds).workArea,left=bounds.x+r.x*zoom,right=left+r.width*zoom,center=bounds.y+(r.y+Math.min(r.height/2,95))*zoom;const to={x:Math.max(area.x+85,Math.min(area.x+area.width-85,left-bounds.x>125?left-75:right+75)),y:Math.max(area.y+135,Math.min(area.y+area.height-95,center+30*state.scale))};if(Math.hypot(to.x-from.x,to.y-from.y)<4||introTravel&&Math.hypot(to.x-introTravel.to.x,to.y-introTravel.to.y)<4)return snapshot();cancelTravel();const duration=Math.min(2400,Math.max(650,Math.hypot(to.x-from.x,to.y-from.y)/260*1000));introTravel={from,to,at:Date.now(),duration};act('walk',duration,undefined,true);liftPet();return snapshot();});
   ipcMain.handle('pet-settings',(e,patch)=>{
    if(!trusted(e)||!patch||typeof patch!=='object')return null;
-   const allowed=['type','scale','speed','personality','roaming','alwaysOnTop','attention','attentionMinutes','menuSize','lookAt','aware','notify','water','waterMinutes','prompts','crossScreens','sounds','volume','autoUpdate','chatTheme'];
+   const allowed=['type','scale','speed','personality','roaming','alwaysOnTop','attention','attentionMinutes','menuSize','lookAt','aware','notify','water','waterMinutes','prompts','crossScreens','sounds','volume','autoUpdate','chatTheme','userName','petNames'];
    const safe=Object.fromEntries(allowed.filter(k=>Object.hasOwn(patch,k)).map(k=>[k,patch[k]]));
    state=sanitize({...state,...safe}); applyAwareness(); applyNotifications(); nextWater=0; nextScare=0; cancelTravel(); attentionHome=null; lastAttention=Date.now();
    liftPet(); move(constrain(anchor()));syncDisplay();monitorHeights.clear();
@@ -467,10 +471,11 @@ else {
     lastReminderCheck=now;
     const reminders=dueReminders(state.reminders,now);
     if(reminders.changed){state.reminders=reminders.pending;save();emit();}
-    if(reminders.due.length){closeGames();const message=reminders.due.map(r=>r.text).join('\n');cancelTravel();options=false;win.showInactive();act('alert',15000,'🔔 '+phrase('reminder')+'\n'+message);sound('reminder',true);}
+    if(reminders.due.length){closeGames();const message=reminders.due.map(r=>r.text).join('\n');cancelTravel();options=false;showPet();act('alert',15000,personalLine('🔔 '+phrase('reminder'),state)+'\n'+message,false,true);sound('reminder',true);}
    }
    if(now-lastSave>60000){save();lastSave=now;}
    if(social?.isAway()||!win.isVisible())return;
+   if(introTravel){const u=Math.min(1,(now-introTravel.at)/introTravel.duration),k=u*u*(3-2*u);direction=introTravel.to.x>=introTravel.from.x?1:-1;move({x:introTravel.from.x+(introTravel.to.x-introTravel.from.x)*k,y:introTravel.from.y+(introTravel.to.y-introTravel.from.y)*k});if(u===1){introTravel=null;act('greet',3000,'Right here! Let’s try this together. 🐾',true);}}
    pushView();
    const c=screen.getCursorScreenPoint(),p=anchor(),hit=nativeAnchor(),s=state.scale;
    scratchUpdate(c,hit,s,now,dt);
@@ -499,7 +504,7 @@ else {
     act('idle',4500,state.prompts?phrase(event):undefined);return;
    }
    if(options&&now>until&&action!=='happy'&&!playing)act('happy',30000,undefined,true); // menu still open: settle back to a calm pose
-   if(paused||options||playing||now<meetUntil)return;
+   if(paused||options||playing||now<meetUntil||!state.onboardingComplete)return;
    if(travel){
     if(travel.pending)return;
     const progress=(now-travel.start)/(travel.duration||1800);
@@ -579,6 +584,6 @@ else {
   const runTick=()=>{tick();if(alive())timer=setTimeout(runTick,!win.isVisible()?1000:paused?75:1000/30);};runTick();
   applyAwareness();applyNotifications();watchPower();
  });
- app.on('before-quit',()=>{app.isQuitting=true;social?.stop();if(awareHandle)awareHandle.stop();if(noticeHandle)noticeHandle.stop();clearInterval(timer);cancelTravel();if(state)save();});
+ app.on('before-quit',e=>{if(alive()&&win.isVisible()&&!quittingFade){e.preventDefault();quittingFade=true;hidePet();setTimeout(()=>app.quit(),430);return;}app.isQuitting=true;clearTimeout(enterTimer);clearTimeout(hideTimer);social?.stop();if(awareHandle)awareHandle.stop();if(noticeHandle)noticeHandle.stop();clearInterval(timer);cancelTravel();if(state)save();});
  app.on('window-all-closed',()=>app.quit());
 }

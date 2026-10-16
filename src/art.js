@@ -17,7 +17,7 @@ function drawPet(ctx, state, t, age, x, y, scale = 1) {
  const broom=type==='merlin'&&moving,weary=moving&&type==='drowsy',gait=broom?0:weary?t*3.6:t*10;
  const follow=Math.max(-4,Math.min(4,-(state.swing||0)*7+(broom?0:moving?Math.sin(gait-1)*(weary?.35:1.2):Math.sin(t*2-1)*.45)+pose.bend*.5-pose.y*.035));
  const r=(x,y,w,h,c)=>{ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),w,h);};
- ctx.save(); ctx.translate(x,y); ctx.scale(4*scale,4*scale); ctx.translate(-30,-40);ctx.imageSmoothingEnabled=false;
+ ctx.save();if(state.presence&&typeof PetPresence!=='undefined'){const q=PetPresence.transitionPose(state.presence.mode,(Date.now()-state.presence.at)/state.presence.duration);ctx.globalAlpha*=q.alpha;scale*=q.scale;y+=q.y;} ctx.translate(x,y); ctx.scale(4*scale,4*scale); ctx.translate(-30,-40);ctx.imageSmoothingEnabled=false;
  r(20,61,20,1,'#05091335');r(23,62,14,1,'#05091318');
  if(state.swing){ctx.translate(30,12);ctx.rotate(state.swing);ctx.scale(1,state.stretch||1);ctx.translate(-30,-12);}
  if(a==='scare'&&type==='boo')ctx.globalAlpha*=s<.5?.2:1;

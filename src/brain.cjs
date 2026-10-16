@@ -1,3 +1,4 @@
+const {cleanName}=require('./personal.js');
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 const types = ['miso', 'ember', 'bumble', 'boo', 'drowsy', 'merlin', 'luffy'];
 function validZone(z) {
@@ -5,6 +6,9 @@ function validZone(z) {
 }
 function sanitize(raw = {}) {
   return {
+    userName:cleanName(raw.userName),
+    petNames:Object.fromEntries(types.map(type=>[type,cleanName(raw.petNames?.[type])]).filter(([,name])=>name)),
+    onboardingComplete:raw.onboardingComplete===true,
     energy: Number.isFinite(raw.energy) ? clamp(raw.energy, 0, 100) : 80,
     bond: Number.isFinite(raw.bond) ? clamp(raw.bond, 0, 100) : 0,
     personality: ['curious', 'sleepy', 'mischievous'].includes(raw.personality) ? raw.personality : 'curious',

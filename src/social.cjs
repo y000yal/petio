@@ -21,7 +21,7 @@ function startSocial({directory,readPet,readHost,setAway,returned,onState,onNoti
   let value;try{value=await res.json();}catch{throw new Error('The server did not return JSON. Check its address and deployment protection.');}
   if(!res.ok||value.ok!==true||value.service!=='petio')throw new Error(value.error||'This server is not ready for Petio.');
  }
- function closeVisitor(){try{onPlay?.(null,0,'end');}catch{}if(visitor&&!visitor.isDestroyed())visitor.destroy();visitor=null;visitorStateKey='';}
+ function closeVisitor(){try{onPlay?.(null,0,'end');}catch{}const closing=visitor;visitor=null;visitorStateKey='';if(closing&&!closing.isDestroyed()){closing.setIgnoreMouseEvents(true,{forward:true});closing.webContents.send('visitor-exit');setTimeout(()=>{if(!closing.isDestroyed())closing.destroy();},370);}}
  function placeVisitor(){
   let area=screen.getPrimaryDisplay().workArea;
   try{const host=readHost?.();if(host&&Number.isFinite(host.x)&&Number.isFinite(host.y))area=screen.getDisplayNearestPoint({x:Math.round(host.x),y:Math.round(host.y)}).workArea;}catch{}
@@ -74,13 +74,13 @@ function startSocial({directory,readPet,readHost,setAway,returned,onState,onNoti
  ipcMain.handle('visitor-host',e=>{
   if(!visitor||visitor.isDestroyed()||e.sender!==visitor.webContents||typeof readHost!=='function')return null;
   const h=readHost();if(!h)return null;const b=visitor.getBounds();
-  return {type:h.type,scale:h.scale||.65,busy:!!h.busy,x:h.x-b.x,y:h.y-b.y};
+  return {type:h.type,name:h.name,scale:h.scale||.65,busy:!!h.busy,x:h.x-b.x,y:h.y-b.y};
  });
- ipcMain.on('visitor-play',(e,data)=>{if(!visitor||visitor.isDestroyed()||e.sender!==visitor.webContents||!data||!['greet','guest','host','play','end'].includes(data.stage)||![-1,1].includes(data.side))return;const visit=(latest.incomingVisits||[latest.incoming]).find(v=>v&&v.id===data.id&&v.type===data.guest);if(!visit)return;try{onPlay?.(visit.type,data.side,data.stage,Number.isInteger(data.variation)?data.variation%20:0);}catch{}});
+ ipcMain.on('visitor-play',(e,data)=>{if(!visitor||visitor.isDestroyed()||e.sender!==visitor.webContents||!data||!['greet','guest','host','play','end'].includes(data.stage)||![-1,1].includes(data.side))return;const visit=(latest.incomingVisits||[latest.incoming]).find(v=>v&&v.id===data.id&&v.type===data.guest);if(!visit)return;try{onPlay?.(visit.type,data.side,data.stage,Number.isInteger(data.variation)?data.variation%20:0,visit.petName||'');}catch{}});
  ipcMain.handle('visitor-return',async(e,reply,id)=>{
   if(!visitor||visitor.isDestroyed()||e.sender!==visitor.webContents)return {error:'Visitor unavailable.'};
   const visits=latest.incomingVisits||(latest.incoming?[latest.incoming]:[]);id||=visits[0]?.id;if(!visits.some(v=>v.id===id))return {error:'Visit ended.'};
-  try{await request('/visit/return',{id,...(typeof reply==='string'&&reply.trim()?{reply:reply.trim()}: {})});visitorStateKey='';await sync();return {ok:true};}catch(e){return {error:e.message};}
+  try{visitor.webContents.send('visitor-exit',id);await new Promise(resolve=>setTimeout(resolve,370));await request('/visit/return',{id,...(typeof reply==='string'&&reply.trim()?{reply:reply.trim()}: {})});visitorStateKey='';await sync();return {ok:true};}catch(e){return {error:e.message};}
  });
  return {state:()=>({...latest,server,hasProfile:!!identity}),isAway:()=>away,async command(data){
   try{
@@ -93,7 +93,7 @@ function startSocial({directory,readPet,readHost,setAway,returned,onState,onNoti
    else if(data.command==='create')await request('/room/create',{name:data.name});
    else if(data.command==='join')await request('/room/join',{code:data.code});
    else if(data.command==='accept')await request('/preferences',{accept:data.accept,visitorLimit:data.visitorLimit});
-   else if(data.command==='visit'){if(data.message!==undefined&&(typeof data.message!=='string'||data.message.length>280))throw new Error('Keep your visit message within 280 characters.');await request('/visit/send',{host:typeof data.host==='string'?data.host:'',type:readPet().type,message:data.message?.trim()||'Hi! I came over to keep you company. 👋'});}
+   else if(data.command==='visit'){if(data.message!==undefined&&(typeof data.message!=='string'||data.message.length>280))throw new Error('Keep your visit message within 280 characters.');await request('/visit/send',{host:typeof data.host==='string'?data.host:'',type:readPet().type,petName:require('./personal.js').petName(readPet(),readPet().type),message:data.message?.trim()||'Hi! I came over to keep you company. 👋'});}
    else if(data.command==='send')await request('/message',{message:data.message,host:data.host==='group'||typeof data.host!=='string'?'group':data.host,...(typeof data.reply==='string'&&data.reply?{reply:data.reply}:{})});
    else if(data.command==='unsend')await request('/unsend',{id:typeof data.id==='string'?data.id:''});
    else if(data.command==='react')await request('/react',{id:typeof data.id==='string'?data.id:'',emoji:typeof data.emoji==='string'?data.emoji:''});
