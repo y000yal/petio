@@ -33,7 +33,9 @@ async function remote(route,data={},token=''){const r=await fetch('http://127.0.
   let state=await owner.webContents.executeJavaScript('window.pet.socialRead()');const friend=await remote('/register',{name:'Remote friend'});
   await remote('/room/join',{code:state.room.code},friend.token);await remote('/preferences',{accept:true},friend.token);
   const heart=setInterval(()=>remote('/state',{},friend.token).catch(()=>{}),2000);
-  assert.equal((await command({command:'send',host:friend.id,message:'Lunch? 👻'})).ok,true);
+  await command({command:'refresh'});
+  await until(async()=>connectionSettings.webContents.executeJavaScript('!!document.querySelector(".send-visit:not(:disabled)")'));
+  await connectionSettings.webContents.executeJavaScript('document.querySelector(".send-visit:not(:disabled)").click()');
   await until(()=>!owner.isVisible());const arriving=(await remote('/state',{},friend.token)).incoming;assert.equal(arriving.phase,'arriving');
   await remote('/visit/arrive',{id:arriving.id},friend.token);await remote('/visit/return',{id:arriving.id,reply:'Yes, lunch!'},friend.token);
   await until(()=>owner.isVisible());assert.match(await owner.webContents.executeJavaScript('document.querySelector("#speech").textContent'),/Yes, lunch/);
@@ -68,9 +70,9 @@ async function remote(route,data={},token=''){const r=await fetch('http://127.0.
   await remote('/visit/return',{id:more[1].visit},more[1].token);
   await until(async()=>await party.webContents.executeJavaScript('document.querySelectorAll("#visitor-list button").length===3'));
   assert.equal((await command({command:'accept',accept:false})).ok,true);await until(()=>party.isDestroyed());clearInterval(guestHeart);
-  assert.equal((await command({command:'send',host:friend.id,message:'Recall test'})).ok,true);await until(()=>!owner.isVisible());
+  assert.equal((await command({command:'visit',host:friend.id,message:'Recall test'})).ok,true);await until(()=>!owner.isVisible());
   assert.equal((await command({command:'recall'})).ok,true);await until(()=>owner.isVisible());
-  assert.equal((await command({command:'send',host:friend.id,message:'Outage test'})).ok,true);await until(()=>!owner.isVisible());
+  assert.equal((await command({command:'visit',host:friend.id,message:'Outage test'})).ok,true);await until(()=>!owner.isVisible());
   clearInterval(heart);await new Promise(r=>server.close(r));await until(()=>owner.isVisible(),32000);
   console.log('PASS: owner departure, reply return, visitor alongside own pet, rendered artwork, send home, five visitors in one renderer, separate replies, recall, outage recovery, and connection feedback. Captures: '+directory);
   server.close();app.quit();

@@ -45,7 +45,8 @@ function socialRender(s){
   if(m.online){const dot=document.createElement('i');dot.className='presence';dot.setAttribute('aria-label','Online');who.append(dot);}
   const name=document.createElement('strong');name.textContent=m.name;who.append(name);
   const status=document.createElement('span');status.className='status';status.textContent=m.online?(m.accept?(ready(m)?'Ready for a visit':'Full right now'):'Visits off'):'Offline';
-  row.append(who,status);list.append(row);
+  const visit=document.createElement('button');visit.type='button';visit.className='send-visit';visit.textContent='Send pet to visit';visit.setAttribute('aria-label','Send pet to visit '+m.name);visit.disabled=socialPending||!s.connected||!!s.outgoing||!ready(m);visit.title=s.outgoing?'Recall your pet before starting another visit':!ready(m)?status.textContent:'Your pet will leave your desktop and visit '+m.name;visit.onclick=()=>socialAction({command:'visit',host:m.id});
+  row.append(who,status,visit);list.append(row);
  }
  socialEl('away').hidden=!s.outgoing;if(s.outgoing)socialEl('away-text').textContent='Your pet is '+(s.outgoing.phase==='active'?'visiting ':'travelling to ')+s.outgoing.hostName;socialEl('recall').disabled=!s.connected;
  socialEl('history-title').hidden=!s.recent?.length;socialEl('history').replaceChildren();

@@ -66,3 +66,5 @@ main>section[data-panel="friends-chat"]{max-width:none;height:calc(100vh - 108px
 @keyframes bubble-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 #desk-log .bubble:last-child,#desk-log>p.mine:last-of-type{animation:bubble-in .22s cubic-bezier(.22,1,.36,1)}
 @media(prefers-reduced-motion:reduce){#desk-log .bubble:last-child,#desk-log>p.mine:last-of-type{animation:none}}
+
+.friend .send-visit{margin-left:auto;white-space:nowrap;font-size:12px}.friend{flex-wrap:wrap;gap:8px}.friend .send-visit:disabled{opacity:.45;cursor:default}
