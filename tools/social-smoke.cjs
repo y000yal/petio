@@ -48,6 +48,14 @@ async function remote(route,data={},token=''){const r=await fetch('http://127.0.
   assert.match(await visitor.webContents.executeJavaScript('document.body.innerText'),/Remote friend/);
   assert.match(await visitor.webContents.executeJavaScript('document.body.innerText'),/Woof from your friend/);
   await wait(1600);assert.equal(await visitor.webContents.executeJavaScript('(()=>{const c=document.querySelector("canvas"),d=c.getContext("2d").getImageData(0,0,c.width,c.height).data;for(let i=3;i<d.length;i+=64)if(d[i]>20)return true;return false;})()'),true);
+  await until(async()=>visitor.webContents.executeJavaScript('host.x>0&&!host.busy&&bodies.size>0'));
+  await visitor.webContents.executeJavaScript('(()=>{const b=[...bodies.values()][0],p=meetingSpot(host,innerWidth,innerHeight);if(!p)throw Error("No meeting spot");Object.assign(b,{x:p.x,y:p.y,tx:p.x,ty:p.y,mode:"seek",cool:0,nextSeek:performance.now()+20000});bubble.hidden=true;})()');
+  await until(async()=>visitor.webContents.executeJavaScript('[...bodies.values()][0].stage==="guest"'));
+  await until(async()=>owner.webContents.executeJavaScript('state.action==="socialListen"'));
+  await until(async()=>visitor.webContents.executeJavaScript('[...bodies.values()][0].stage==="host"'));
+  await until(async()=>owner.webContents.executeJavaScript('state.action==="socialTalk"'));
+  assert.match(await owner.webContents.executeJavaScript('document.querySelector("#speech").textContent'),/./);
+  console.log('PASS: visitor approaches, waves, chats and listens while the host replies.');
   const image=await visitor.webContents.capturePage();fs.writeFileSync(path.join(directory,'visitor.png'),image.toPNG());
   await visitor.webContents.executeJavaScript('void window.visitor.sendHome("Scritches delivered! 🐾")');await until(()=>visitor.isDestroyed());
   assert.equal(visitor.isDestroyed(),true);assert.equal((await remote('/state',{},friend.token)).recent.at(-1).reply,'Scritches delivered! 🐾');

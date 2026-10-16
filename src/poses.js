@@ -113,6 +113,8 @@ function actionPose(action,progress,time,type='miso',need=0){
  else if(action==='sheep'){p.lean=Math.sin(time*1.2)*.05;p.squash=.95;p.face='squeezed';}
  else if(action==='cocoa'){const s2=Math.max(0,Math.sin(time*.9));p.rightArm=8+s2*3;p.lean=s2*.04;p.squash=.95;}
  else if(action==='nuzzle'){p.lean=.28;p.y=1;p.bend=1;p.leftArm=2;p.rightArm=5;p.face='happy';}
+ else if(action==='socialTalk'){p.rightArm=6+Math.sin(time*6)*3;p.leftArm=2+Math.sin(time*4);p.lean=Math.sin(time*3)*.05;p.face='happy';}
+ else if(action==='socialListen'){p.bend=1+Math.sin(time*3)*.7;p.y=Math.sin(time*3)*.5;p.rightArm=2;p.face='happy';}
  else if(action==='greet'){p.rightArm=9+Math.sin(time*8)*2;p.leftArm=0;p.y=-Math.abs(Math.sin(time*5))*2;p.face='happy';}
  else if(action==='play'){p.y=-Math.abs(Math.sin(time*8))*5;p.lean=Math.sin(time*8)*.16;p.leftArm=7;p.rightArm=3;p.face='wink';}
  else if(action==='spark'){p.rightArm=10+Math.sin(time*6)*1.5;p.y=-6-Math.sin(time*3)*2;p.lean=Math.sin(time*2)*.1;p.face='happy';}

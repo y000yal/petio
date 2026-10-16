@@ -382,7 +382,7 @@ else {
   if(app.isPackaged){setTimeout(()=>updates.check(),8000);setInterval(()=>{const u=updates.snapshot();if(!['checking','downloading','ready'].includes(u.status))updates.check();},30*60*1000);}
   ipcMain.handle('pet-read',e=>trusted(e)?snapshot():null);
   social=require('./social.cjs').startSocial({directory:app.getPath('userData'),readPet:()=>state,
-   readHost:()=>{const p=nativeAnchor();return {type:state.type,x:p.x,y:p.y,scale:state.scale,busy:!!(options||composing||drag||playing||travel)||['sleep','dead','beg','carried','gameThink'].includes(action)||!alive()||!win.isVisible()};},
+   readHost:()=>{const p=nativeAnchor();return {type:state.type,x:p.x,y:p.y,scale:state.scale,busy:!!(paused||options||composing||drag||playing||travel)||['sleep','dead','beg','carried','gameThink','alert'].includes(action)||!alive()||!win.isVisible()};},
    onNotice:n=>{
     if(!n||typeof n.name!=='string')return;
     if(n.kind==='message'&&composing)return;
@@ -394,7 +394,7 @@ else {
     const bubble=n.kind==='message'?n.name+': '+n.text:text;
     if(alive()&&win.isVisible()&&!travel&&!drag&&!playing&&action!=='portalOut')act('happy',n.kind==='message'?9000:7000,bubble);
    },
-   onPlay:(guest,side)=>{if(!alive()||!win.isVisible()||options||drag||playing||travel||['sleep','dead','beg','carried','gameThink','portalOut','portalIn'].includes(action))return;const duo=require('./pairs.js').pairPlay(state.type,guest);direction=side>0?-1:1;meetUntil=Date.now()+3400;act(duo.host,3400,undefined,true);},
+   onPlay:(guest,side,stage='play',variation=0)=>{if(stage==='end'){meetUntil=0;return;}if(!alive()||!win.isVisible()||options||composing||drag||playing||travel||paused||['sleep','dead','beg','carried','gameThink','portalOut','portalIn','alert'].includes(action))return;const {pairPlay,pairChat}=require('./pairs.js'),duo=pairPlay(state.type,guest);direction=side>0?-1:1;if(stage==='greet')meetUntil=Date.now()+10000;const duration=stage==='greet'?1200:stage==='play'?3400:2600;act(stage==='greet'?'greet':stage==='guest'?'socialListen':stage==='host'?'socialTalk':duo.host,duration,stage==='host'?pairChat(state.type,guest,variation).host:undefined,true);},
    setAway:async away=>{cancelTravel();drag=null;options=false;needLevel=0;if(away&&alive()){
     closeGames();
     act('portalOut',850,'Off to visit a friend! ✨');
@@ -499,7 +499,7 @@ else {
     act('idle',4500,state.prompts?phrase(event):undefined);return;
    }
    if(options&&now>until&&action!=='happy'&&!playing)act('happy',30000,undefined,true); // menu still open: settle back to a calm pose
-   if(paused||options||playing)return;
+   if(paused||options||playing||now<meetUntil)return;
    if(travel){
     if(travel.pending)return;
     const progress=(now-travel.start)/(travel.duration||1800);

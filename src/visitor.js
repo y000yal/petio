@@ -52,6 +52,7 @@ function drawScroll(x,y){
  ctx.fillStyle='#8d6a3a';ctx.fillRect(-5,-14,10,1);ctx.fillRect(-5,-11,10,1);ctx.fillRect(-5,-8,7,1);
  ctx.restore();
 }
+function drawChat(text,x,y){ctx.save();ctx.font='12px Segoe UI';const words=text.split(' '),lines=[''];for(const word of words){const i=lines.length-1,next=lines[i]?lines[i]+' '+word:word;if(ctx.measureText(next).width>170&&lines[i])lines.push(word);else lines[i]=next;}const w=Math.max(...lines.map(line=>ctx.measureText(line).width))+20,h=lines.length*16+14,left=Math.max(8,Math.min(innerWidth-w-8,x-w/2)),top=Math.max(8,y-h);ctx.fillStyle='#242330';ctx.beginPath();ctx.roundRect(left,top,w,h,12);ctx.fill();ctx.fillStyle='#e8dbff';ctx.textAlign='left';lines.forEach((line,i)=>ctx.fillText(line,left+10,top+19+i*16));ctx.restore();}
 function frame(){
  const now=performance.now(),dt=Math.min(.08,(now-last)/1000);last=now;
  const {width,height}=area();ctx.clearRect(0,0,width,height);spots=[];
@@ -60,30 +61,30 @@ function frame(){
  for(const v of visits){
   const b=bodyFor(v,width,height),scale=Math.min(.7,host.scale||.65);
   if(b.mode==='play'){
-   if(now>b.until){b.mode='roam';b.cool=now+7000;wander(b,width,height);}
-   else b.face=b.x<host.x?1:-1;
+   const stage=socialStage(now-b.actAt);
+   if(stage==='end'||host.busy||Math.hypot(b.x-host.x,b.y-host.y)>220){b.mode='roam';b.cool=now+18000+Math.random()*12000;b.stage='';window.visitor.play({id:v.id,guest:v.type,side:b.x>=host.x?1:-1,stage:'end'});wander(b,width,height);}
+   else{b.face=b.x<host.x?1:-1;b.act=stage==='greet'?'greet':stage==='guest'?'socialTalk':stage==='host'?'socialListen':pairPlay(host.type,v.type).guest;
+    if(stage!==b.stage){b.stage=stage;b.stageAt=now;window.visitor.play({id:v.id,guest:v.type,side:b.x>=host.x?1:-1,stage,variation:b.variation});}}
   }else{
-   const dx=b.tx-b.x,dy=b.ty-b.y,dist=Math.hypot(dx,dy)||.01;
-   if(dist<14)wander(b,width,height);
-   else{const step=Math.min(dist,92*dt);b.x+=dx/dist*step;b.y+=dy/dist*step;b.face=dx>=0?1:-1;}
-   const near=Math.hypot(b.x-host.x,b.y-host.y);
-   if(!host.busy&&!playing()&&now>b.cool&&near<128){
-    b.mode='play';b.until=now+3400;b.actAt=now;b.act=pairPlay(host.type,v.type).guest;active=true;
-    window.visitor.play({guest:v.type,side:b.x>=host.x?1:-1});
-   }else if(now>b.nextSeek){
-    b.nextSeek=now+4500+Math.random()*5000;
-    if(!host.busy&&Math.random()<0.7){b.tx=Math.max(60,Math.min(width-60,host.x+(Math.random()*180-90)));b.ty=Math.max(80,Math.min(height-50,host.y+(Math.random()*50-16)));}
+   if(b.mode==='seek'&&(host.busy||playing())){b.mode='roam';wander(b,width,height);}
+   if(b.mode==='seek'){const target=meetingSpot(host,width,height,scale);if(target){b.tx=target.x;b.ty=target.y;}else b.mode='roam';}
+   let targetY=b.ty;if(b.mode==='seek'&&(b.x-host.x)*(b.tx-host.x)<0&&Math.abs(b.y-host.y)<100){targetY=host.y>190?host.y-130:host.y+130;}
+   const dx=b.tx-b.x,dy=targetY-b.y,dist=Math.hypot(dx,dy)||.01;
+   if(dist<12){
+    if(b.mode==='seek'&&!host.busy&&!playing()){b.mode='play';b.actAt=now;b.stageAt=now;b.stage='greet';b.variation=(b.variation||0)+1;b.act='greet';b.face=b.x<host.x?1:-1;window.visitor.play({id:v.id,guest:v.type,side:b.x>=host.x?1:-1,stage:'greet',variation:b.variation});}
     else wander(b,width,height);
-   }
+   }else{const speed=v.type==='drowsy'?32:92,step=Math.min(dist,speed*dt);b.x+=dx/dist*step;b.y+=dy/dist*step;b.face=dx>=0?1:-1;}
+   if(b.mode!=='play'&&now>b.nextSeek){b.nextSeek=now+4500+Math.random()*5000;const target=meetingSpot(host,width,height,scale);if(target&&!host.busy&&!playing()&&now>b.cool){b.mode='seek';b.tx=target.x;b.ty=target.y;}else if(b.mode!=='seek')wander(b,width,height);}
   }
   const arriving=(now-born.get(v.id))/1000<1.2,pet=now<(petted.get(v.id)||0),acting=b.mode==='play';
   active||=arriving||pet||acting||Math.hypot(b.tx-b.x,b.ty-b.y)>16;
   const action=pet?'scratch':acting?b.act:Math.hypot(b.tx-b.x,b.ty-b.y)>16?'walk':'idle';
-  const age=acting?(now-b.actAt)/1000:(now-born.get(v.id))/1000;
+  const age=acting?(now-b.stageAt)/1000:(now-born.get(v.id))/1000;
   ctx.save();
   if(arriving)ctx.globalAlpha=Math.min(1,(now-born.get(v.id))/900);
-  drawPet(ctx,{type:v.type,action,direction:b.face,meet:acting,started:acting?b.actAt:born.get(v.id),until:acting?b.actAt+3400:born.get(v.id)+800},now/1000,age,b.x,b.y,scale);
+  drawPet(ctx,{type:v.type,action,direction:b.face,meet:acting,started:acting?b.stageAt:born.get(v.id),until:acting?b.stageAt+(b.stage==='play'?3400:2600):born.get(v.id)+800},now/1000,age,b.x,b.y,scale);
   ctx.restore();
+  if(acting&&b.stage==='guest')drawChat(pairChat(host.type,v.type,b.variation).guest,b.x,b.y-140*scale);
   drawScroll(b.x,b.y-78*scale);
   spots.push({id:v.id,l:b.x-54,r:b.x+54,t:b.y-108*scale,b:b.y+24});
  }

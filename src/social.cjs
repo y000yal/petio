@@ -21,7 +21,7 @@ function startSocial({directory,readPet,readHost,setAway,returned,onState,onNoti
   let value;try{value=await res.json();}catch{throw new Error('The server did not return JSON. Check its address and deployment protection.');}
   if(!res.ok||value.ok!==true||value.service!=='petio')throw new Error(value.error||'This server is not ready for Petio.');
  }
- function closeVisitor(){if(visitor&&!visitor.isDestroyed())visitor.destroy();visitor=null;visitorStateKey='';}
+ function closeVisitor(){try{onPlay?.(null,0,'end');}catch{}if(visitor&&!visitor.isDestroyed())visitor.destroy();visitor=null;visitorStateKey='';}
  function placeVisitor(){
   let area=screen.getPrimaryDisplay().workArea;
   try{const host=readHost?.();if(host&&Number.isFinite(host.x)&&Number.isFinite(host.y))area=screen.getDisplayNearestPoint({x:Math.round(host.x),y:Math.round(host.y)}).workArea;}catch{}
@@ -76,7 +76,7 @@ function startSocial({directory,readPet,readHost,setAway,returned,onState,onNoti
   const h=readHost();if(!h)return null;const b=visitor.getBounds();
   return {type:h.type,scale:h.scale||.65,busy:!!h.busy,x:h.x-b.x,y:h.y-b.y};
  });
- ipcMain.on('visitor-play',(e,data)=>{if(visitor&&!visitor.isDestroyed()&&e.sender===visitor.webContents&&data&&typeof data.guest==='string'&&typeof data.side==='number'){try{onPlay?.(data.guest,data.side);}catch{}}});
+ ipcMain.on('visitor-play',(e,data)=>{if(!visitor||visitor.isDestroyed()||e.sender!==visitor.webContents||!data||!['greet','guest','host','play','end'].includes(data.stage)||![-1,1].includes(data.side))return;const visit=(latest.incomingVisits||[latest.incoming]).find(v=>v&&v.id===data.id&&v.type===data.guest);if(!visit)return;try{onPlay?.(visit.type,data.side,data.stage,Number.isInteger(data.variation)?data.variation%3:0);}catch{}});
  ipcMain.handle('visitor-return',async(e,reply,id)=>{
   if(!visitor||visitor.isDestroyed()||e.sender!==visitor.webContents)return {error:'Visitor unavailable.'};
   const visits=latest.incomingVisits||(latest.incoming?[latest.incoming]:[]);id||=visits[0]?.id;if(!visits.some(v=>v.id===id))return {error:'Visit ended.'};
