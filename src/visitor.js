@@ -37,7 +37,7 @@ function bodyFor(v,width,height){
  let b=bodies.get(v.id);
  if(!b){
   b={x:80+Math.random()*Math.max(40,width-160),y:height*0.62+Math.random()*Math.max(20,height*0.2),tx:0,ty:0,face:1,mode:'roam',until:0,cool:0,nextSeek:0,act:'idle',actAt:0};
-  b.tx=b.x;b.ty=b.y;bodies.set(v.id,b);
+  b.variation=Math.floor(Math.random()*20);b.tx=b.x;b.ty=b.y;bodies.set(v.id,b);
  }
  return b;
 }

@@ -76,7 +76,7 @@ function startSocial({directory,readPet,readHost,setAway,returned,onState,onNoti
   const h=readHost();if(!h)return null;const b=visitor.getBounds();
   return {type:h.type,scale:h.scale||.65,busy:!!h.busy,x:h.x-b.x,y:h.y-b.y};
  });
- ipcMain.on('visitor-play',(e,data)=>{if(!visitor||visitor.isDestroyed()||e.sender!==visitor.webContents||!data||!['greet','guest','host','play','end'].includes(data.stage)||![-1,1].includes(data.side))return;const visit=(latest.incomingVisits||[latest.incoming]).find(v=>v&&v.id===data.id&&v.type===data.guest);if(!visit)return;try{onPlay?.(visit.type,data.side,data.stage,Number.isInteger(data.variation)?data.variation%3:0);}catch{}});
+ ipcMain.on('visitor-play',(e,data)=>{if(!visitor||visitor.isDestroyed()||e.sender!==visitor.webContents||!data||!['greet','guest','host','play','end'].includes(data.stage)||![-1,1].includes(data.side))return;const visit=(latest.incomingVisits||[latest.incoming]).find(v=>v&&v.id===data.id&&v.type===data.guest);if(!visit)return;try{onPlay?.(visit.type,data.side,data.stage,Number.isInteger(data.variation)?data.variation%20:0);}catch{}});
  ipcMain.handle('visitor-return',async(e,reply,id)=>{
   if(!visitor||visitor.isDestroyed()||e.sender!==visitor.webContents)return {error:'Visitor unavailable.'};
   const visits=latest.incomingVisits||(latest.incoming?[latest.incoming]:[]);id||=visits[0]?.id;if(!visits.some(v=>v.id===id))return {error:'Visit ended.'};
