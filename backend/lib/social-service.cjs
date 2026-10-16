@@ -111,7 +111,7 @@ function createService({ state, file, now = Date.now, leaseMs = 15000 } = {}) {
       if(own())fail('Your pet is already travelling or visiting.');
       if(Object.values(db.visits).filter(v=>v.host===host.id&&v.phase!=='returned').length>=capacity(host))fail('This desktop has reached its visitor limit.');
       if(!types.includes(data.type))fail('Unknown companion.');
-      const id=randomUUID();db.visits[id]={id,owner:user.id,host:host.id,type:data.type,...(data.petName?{petName:text(data.petName,32)}:{}),message:text(data.message,280),phase:'departing',createdAt:now(),expires:now()+5*60000,reply:'',reason:''};save();return {ok:true};
+      const id=randomUUID();db.visits[id]={id,owner:user.id,host:host.id,type:data.type,...(data.petName?{petName:text(data.petName,32)}:{}),message:text(data.message,1000),phase:'departing',createdAt:now(),expires:now()+5*60000,reply:'',reason:''};save();return {ok:true};
     }
     if(route==='/visit/depart'){
       const v=db.visits[data.id];if(!v||v.owner!==user.id||v.phase!=='departing')fail('Departure no longer available.');v.phase='arriving';save();return {ok:true};

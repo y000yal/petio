@@ -417,3 +417,5 @@ document.querySelector('#deliver-jump').onclick=()=>{const log=document.querySel
 document.querySelector('#deliver-log').addEventListener('scroll',()=>{const log=document.querySelector('#deliver-log');if(log.scrollHeight-log.scrollTop-log.clientHeight<48){document.querySelector('#deliver-jump').hidden=true;paintChat.below=0;}});
 document.querySelector('#mail').onclick=()=>openDeliver();
 window.pet.socialSubscribe(s=>{chatState=s;if(document.querySelector('#deliver').hidden)paintInbox(s);else paintChat(s);});
+
+PetVisitSend.bind({form:document.getElementById('deliver-form'),state:()=>chatState,host:()=>document.getElementById('deliver-host').value||'group',message:()=>[document.querySelector('#deliver-form textarea').value.trim(),chosenGif?'[[gif:'+chosenGif+']]':''].filter(Boolean).join(' '),clear:()=>{const field=document.querySelector('#deliver-form textarea');field.value='';fitField(field,88);setReply(null);clearChosenGif();stopTyping();},status:text=>document.getElementById('deliver-status').textContent=text});

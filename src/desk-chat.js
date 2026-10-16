@@ -175,6 +175,7 @@
  });
  jump.onclick=()=>{log.scrollTop=log.scrollHeight;jump.hidden=true;below=0;};
  log.addEventListener('scroll',()=>{if(log.scrollHeight-log.scrollTop-log.clientHeight<48){jump.hidden=true;below=0;}});
+ PetVisitSend.bind({form,state:()=>state,host:()=>select.value||'group',message:()=>[form.elements.message.value.trim(),chosen?'[[gif:'+chosen+']]':''].filter(Boolean).join(' '),clear:()=>{form.elements.message.value='';fitField(form.elements.message);setReply(null);chosen='';sent='';stopTyping();showGif();markTools();},status:text=>status.textContent=text});
  window.pet.socialSubscribe(paint);
  window.pet.socialRead().then(paint).catch(()=>paint(null));
  window.PetioDesk={open(host){if(typeof host!=='string'||!host)return;preferHost=host;stick=true;below=0;if(state)paint(state);}};

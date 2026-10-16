@@ -24,10 +24,10 @@ window.visitor.onState(payload=>{
  const next=payload.visits||[payload],retired=visits.filter(v=>!next.some(n=>n.id===v.id));for(const v of retired)if(!leaving.has(v.id))leaving.set(v.id,Date.now());visits=[...next,...retired.filter(v=>Date.now()-leaving.get(v.id)<350).map(v=>({...v,retiring:true}))];const now=performance.now();
  for(const map of [born,petted,drafts,bodies,leaving])for(const id of map.keys())if(!visits.some(v=>v.id===id))map.delete(id);
  for(const v of visits)if(!born.has(v.id))born.set(v.id,now);
- document.querySelector('#visitor-count').textContent=visits.length>1?visits.length+' visitors · choose one to read the note':'A note from your friend';
- const nav=document.querySelector('#visitor-list');nav.hidden=visits.length<2;nav.replaceChildren();
- for(const v of visits){const b=document.createElement('button');b.dataset.id=v.id;b.textContent=v.ownerName+"’s "+(v.petName||companions[v.type].name);b.onclick=()=>choose(v.id);nav.append(b);}
- if(selected&&!visits.some(v=>v.id===selected)){selected=null;bubble.hidden=true;}
+ document.querySelector('#visitor-count').textContent=next.length>1?next.length+' visitors · choose one to read the note':'A note from your friend';
+ const nav=document.querySelector('#visitor-list');nav.hidden=next.length<2;nav.replaceChildren();
+ for(const v of next){const b=document.createElement('button');b.dataset.id=v.id;b.textContent=v.ownerName+"’s "+(v.petName||companions[v.type].name);b.onclick=()=>choose(v.id);nav.append(b);}
+ if(selected&&!next.some(v=>v.id===selected)){selected=null;bubble.hidden=true;}
  else if(selected&&!bubble.hidden){drafts.set(selected,document.querySelector('#reply').value);fill(selected);}
 });
 function area(){

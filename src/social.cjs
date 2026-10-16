@@ -93,7 +93,7 @@ function startSocial({directory,readPet,readHost,setAway,returned,onState,onNoti
    else if(data.command==='create')await request('/room/create',{name:data.name});
    else if(data.command==='join')await request('/room/join',{code:data.code});
    else if(data.command==='accept')await request('/preferences',{accept:data.accept,visitorLimit:data.visitorLimit});
-   else if(data.command==='visit'){if(data.message!==undefined&&(typeof data.message!=='string'||data.message.length>280))throw new Error('Keep your visit message within 280 characters.');await request('/visit/send',{host:typeof data.host==='string'?data.host:'',type:readPet().type,petName:require('./personal.js').petName(readPet(),readPet().type),message:data.message?.trim()||'Hi! I came over to keep you company. 👋'});}
+   else if(data.command==='visit'){if(data.message!==undefined&&(typeof data.message!=='string'||data.message.length>1000))throw new Error('Keep your visit message within 1000 characters.');await request('/visit/send',{host:typeof data.host==='string'?data.host:'',type:readPet().type,petName:require('./personal.js').petName(readPet(),readPet().type),message:data.message?.trim()||'Hi! I came over to keep you company. 👋'});}
    else if(data.command==='send')await request('/message',{message:data.message,host:data.host==='group'||typeof data.host!=='string'?'group':data.host,...(typeof data.reply==='string'&&data.reply?{reply:data.reply}:{})});
    else if(data.command==='unsend')await request('/unsend',{id:typeof data.id==='string'?data.id:''});
    else if(data.command==='react')await request('/react',{id:typeof data.id==='string'?data.id:'',emoji:typeof data.emoji==='string'?data.emoji:''});
