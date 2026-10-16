@@ -68,3 +68,5 @@ main>section[data-panel="friends-chat"]{max-width:none;height:calc(100vh - 108px
 @media(prefers-reduced-motion:reduce){#desk-log .bubble:last-child,#desk-log>p.mine:last-of-type{animation:none}}
 
 .friend .send-visit{margin-left:auto;white-space:nowrap;font-size:12px}.friend{flex-wrap:wrap;gap:8px}.friend .send-visit:disabled{opacity:.45;cursor:default}
+
+.visit-note{margin:14px 0;padding:16px;border:1px solid #b9a2ff55;border-radius:14px;background:#b9a2ff0a}.visit-note label{display:block;margin:12px 0 6px}.visit-note textarea{display:block;box-sizing:border-box;width:100%;resize:vertical;margin-top:8px;padding:10px;border:1px solid #ffffff22;border-radius:10px;background:#16151d;color:inherit;font:inherit}.visit-note small{display:block;color:#a9a3b6}.visit-note>div{display:flex;gap:8px;margin-top:12px}.visit-note[hidden]{display:none}

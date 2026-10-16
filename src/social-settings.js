@@ -12,6 +12,7 @@ async function socialAction(data){
  if(result?.error){socialEl('error').textContent=result.error;socialEl('status').textContent='Request failed. See the message below.';}
  else if(result?.notice)socialEl('error').textContent=result.notice;
  if(result?.ok)for(const input of document.querySelectorAll('[data-panel=friends-settings] input[type=password]'))input.value='';
+ return result;
 }
 function socialRender(s){
  if(!s)return;socialCurrent=s;
@@ -45,9 +46,10 @@ function socialRender(s){
   if(m.online){const dot=document.createElement('i');dot.className='presence';dot.setAttribute('aria-label','Online');who.append(dot);}
   const name=document.createElement('strong');name.textContent=m.name;who.append(name);
   const status=document.createElement('span');status.className='status';status.textContent=m.online?(m.accept?(ready(m)?'Ready for a visit':'Full right now'):'Visits off'):'Offline';
-  const visit=document.createElement('button');visit.type='button';visit.className='send-visit';visit.textContent='Send pet to visit';visit.setAttribute('aria-label','Send pet to visit '+m.name);visit.disabled=socialPending||!s.connected||!!s.outgoing||!ready(m);visit.title=s.outgoing?'Recall your pet before starting another visit':!ready(m)?status.textContent:'Your pet will leave your desktop and visit '+m.name;visit.onclick=()=>socialAction({command:'visit',host:m.id});
+  const visit=document.createElement('button');visit.type='button';visit.className='send-visit';visit.textContent='Send pet to visit';visit.setAttribute('aria-label','Send pet to visit '+m.name);visit.disabled=socialPending||!s.connected||!!s.outgoing||!ready(m);visit.title=s.outgoing?'Recall your pet before starting another visit':!ready(m)?status.textContent:'Your pet will leave your desktop and visit '+m.name;visit.onclick=()=>{if(socialEl('visit').dataset.host!==m.id)socialEl('visit-message').value='';socialEl('visit').dataset.host=m.id;socialEl('visit-title').textContent='Visit '+m.name;socialEl('visit').hidden=false;socialEl('visit-send').disabled=false;socialEl('visit-message').focus();};
   row.append(who,status,visit);list.append(row);
  }
+ const chosen=members.find(m=>m.id===socialEl('visit').dataset.host);socialEl('visit-send').disabled=socialPending||!s.connected||!!s.outgoing||!chosen||!ready(chosen);if(s.outgoing)socialEl('visit').hidden=true;
  socialEl('away').hidden=!s.outgoing;if(s.outgoing)socialEl('away-text').textContent='Your pet is '+(s.outgoing.phase==='active'?'visiting ':'travelling to ')+s.outgoing.hostName;socialEl('recall').disabled=!s.connected;
  socialEl('history-title').hidden=!s.recent?.length;socialEl('history').replaceChildren();
  for(const r of [...(s.recent||[])].reverse()){const p=document.createElement('p');p.textContent=r.hostName+': '+(r.reply||r.reason);socialEl('history').append(p);}
@@ -63,3 +65,6 @@ socialEl('show-restore').onclick=()=>{restoreOpen=true;if(socialCurrent)socialRe
 socialEl('mode-create').onclick=()=>{roomMode='create';if(socialCurrent)socialRender(socialCurrent);};
 socialEl('mode-join').onclick=()=>{roomMode='join';if(socialCurrent)socialRender(socialCurrent);};
 window.pet.socialSubscribe(socialRender);window.pet.socialRead().then(socialRender);
+
+socialEl('visit-cancel').onclick=()=>{socialEl('visit').hidden=true;};
+socialEl('visit').onsubmit=async e=>{e.preventDefault();const host=e.currentTarget.dataset.host,message=socialEl('visit-message').value.trim();const result=await socialAction({command:'visit',host,message});if(result?.ok){socialEl('visit').hidden=true;socialEl('visit-message').value='';}};

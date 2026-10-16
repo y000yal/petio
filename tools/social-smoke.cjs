@@ -36,7 +36,8 @@ async function remote(route,data={},token=''){const r=await fetch('http://127.0.
   await command({command:'refresh'});
   await until(async()=>connectionSettings.webContents.executeJavaScript('!!document.querySelector(".send-visit:not(:disabled)")'));
   await connectionSettings.webContents.executeJavaScript('document.querySelector(".send-visit:not(:disabled)").click()');
-  await until(()=>!owner.isVisible());const arriving=(await remote('/state',{},friend.token)).incoming;assert.equal(arriving.phase,'arriving');
+  await connectionSettings.webContents.executeJavaScript('document.querySelector("#social-visit-message").value="Meet for tea? ☕";document.querySelector("#social-visit").requestSubmit()');
+  await until(()=>!owner.isVisible());const arriving=(await remote('/state',{},friend.token)).incoming;assert.equal(arriving.phase,'arriving');assert.equal(arriving.message,'Meet for tea? ☕');
   await remote('/visit/arrive',{id:arriving.id},friend.token);await remote('/visit/return',{id:arriving.id,reply:'Yes, lunch!'},friend.token);
   await until(()=>owner.isVisible());assert.match(await owner.webContents.executeJavaScript('document.querySelector("#speech").textContent'),/Yes, lunch/);
   assert.equal((await command({command:'accept',accept:true})).ok,true);state=await owner.webContents.executeJavaScript('window.pet.socialRead()');
